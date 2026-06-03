@@ -29,6 +29,7 @@ import PersonaScoringConfigList from "./components/Persona/ScoringConfig/Persona
 import Nav_Sidebar from "./components/Headerbar";
 import PersonaReportPage from "./components/Persona/PersonaReportPage";
 import Intellegence from "./components/Intelligence/intellegence";
+import MyProfile from "./components/MyProfile";
 
 function Layout() {
   const location = useLocation();
@@ -43,7 +44,7 @@ function Layout() {
       {!shouldHideLayout && <Header />}
 
       <div className="app-layout">
-        <div className="flex-grow-1">
+        <div className="app-content">
           <Routes>
 
             {/* PUBLIC */}
@@ -71,6 +72,7 @@ function Layout() {
             <Route path="/icp/leads/:leadId" element={<ProtectedRoute><ICPLeadAnalysis /></ProtectedRoute>} />
             <Route path="/persona-report"element={<ProtectedRoute><PersonaReportPage /></ProtectedRoute>}/>
             <Route path="/Intelligence" element={<ProtectedRoute><Intellegence /></ProtectedRoute>} />
+            <Route path="/profile"       element={<ProtectedRoute><MyProfile /></ProtectedRoute>} />
 
             {/* FALLBACK */}
             <Route path="*" element={<Login />} />

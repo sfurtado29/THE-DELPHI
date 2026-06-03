@@ -56,15 +56,19 @@ export default function Header() {
                         <Nav_Sidebar />
                     </div>
 
-                    {/* RIGHT: Settings - Fixed Width to match left side balance */}
+                    {/* RIGHT: Profile menu - Fixed Width to match left side balance */}
                     <div className="d-flex justify-content-end" style={{ minWidth: '180px' }}>
                         <button 
                             className="btn btn-light shadow-sm rounded-circle border p-0 d-flex align-items-center justify-content-center"
                             style={{ width: 38, height: 38, transition: 'all 0.2s' }}
                             onClick={() => setSettingsOpen(true)}
+                            title="Open profile menu"
                         >
-                            <i className="bi bi-gear-wide-connected text-dark fs-5"></i>
+                            <i className="bi bi-person-circle fs-5" id="header-profile-icon"></i>
                         </button>
+                        <style>{`
+                            [data-theme="dark"] #header-profile-icon { color: #fff !important; }
+                        `}</style>
                     </div>
                 </div>
             </nav>

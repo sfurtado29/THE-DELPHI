@@ -99,7 +99,10 @@ export default function Enrichment() {
     const [step, setStep] = useState(1);
 
     // ── Individual state vars to avoid re-render/focus loss ──
-    const [companyName,  setCompanyName]  = useState("");
+    const [companyName,  setCompanyName]  = useState(() => {
+        try { return JSON.parse(localStorage.getItem("user") || "{}").company_name || ""; }
+        catch { return ""; }
+    });
     const [industry,     setIndustry]     = useState("");
     const [linkedinUrl,  setLinkedinUrl]  = useState("");
     const [companySize,  setCompanySize]  = useState("");
@@ -210,10 +213,10 @@ export default function Enrichment() {
 
                         <F errors={formErrors} label="Company Name" name="companyName" req>
                             <input
-                                className={`dp-input${formErrors.companyName ? " err" : ""}`}
-                                placeholder="e.g. XTS World"
+                                className="dp-input"
                                 value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
+                                readOnly
+                                style={{ backgroundColor: "var(--dp-surface, #f1f5f9)", cursor: "not-allowed" }}
                             />
                         </F>
 

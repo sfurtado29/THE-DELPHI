@@ -52,7 +52,7 @@ def login(req: LoginRequest):
         cur.execute("""
             SELECT u.user_id, u.user_first_name, u.user_last_name,
                    u.email, u.password, u.email_verified, u.is_active,
-                   u.role_id, r.role_name
+                   u.role_id, r.role_name, u.company_name
             FROM Mst_tbldelphiusers u
             JOIN Mst_delphirole r ON u.role_id = r.role_id
             WHERE u.email = %s
@@ -74,11 +74,12 @@ def login(req: LoginRequest):
         return {
             "message": "Login successful",
             "user": {
-                "user_id":    user["user_id"],
-                "full_name":  f"{user['user_first_name']} {user['user_last_name']}",
-                "email":      user["email"],
-                "role_id":    user["role_id"],
-                "role_name":  user["role_name"],
+                "user_id":      user["user_id"],
+                "full_name":    f"{user['user_first_name']} {user['user_last_name']}",
+                "email":        user["email"],
+                "role_id":      user["role_id"],
+                "role_name":    user["role_name"],
+                "company_name": user["company_name"],
             }
         }
 
