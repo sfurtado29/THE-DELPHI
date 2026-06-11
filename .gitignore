@@ -1,5 +1,4 @@
-cat > .gitignore << 'EOF'
-# Python - catch ALL __pycache__ anywhere
+# Python
 __pycache__/
 **/__pycache__/
 *.py[cod]
@@ -19,6 +18,8 @@ frontend/package-lock.json
 
 # Build
 frontend/build/
+frontend/build_tmp/
+frontend/build_tmp2/
 dist/
 
 # Editor / OS
@@ -27,6 +28,11 @@ dist/
 .DS_Store
 .vscode/
 .idea/
-EOFbackend/pipeline/
-backend/trend.py
-backend/pipeline/
+
+# Root-level scratch/working files (notes, exports, Office lock files)
+/*.txt
+/*.xlsx
+/*.docx
+/*.yaml
+/*.yml
+~$*
