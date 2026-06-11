@@ -1,4 +1,5 @@
 // frontend/src/components/ICP/ICPQuadrantChart.js
+
 import React from "react";
 
 export default function ICPQuadrantChart({ icp, propensity }) {
@@ -51,28 +52,28 @@ export default function ICPQuadrantChart({ icp, propensity }) {
 
         {/* TOP LEFT = Q2 (High ICP + Low Propensity) */}
         <Quadrant
-          title="Q2 -> Future Growth"
+          title="Q2 → Future Growth"
           desc="High ICP + Low Propensity"
           bg="#e0f2fe"
         />
 
         {/* TOP RIGHT = Q1 (High ICP + High Propensity) */}
         <Quadrant
-          title="Q1 -> Strategic Wins"
+          title="Q1 → Strategic Wins"
           desc="High ICP + High Propensity"
           bg="#dcfce7"
         />
 
         {/* BOTTOM LEFT = Q4 (Low ICP + Low Propensity) */}
         <Quadrant
-          title="Q4 -> Low Priority"
+          title="Q4 → Low Priority"
           desc="Low ICP + Low Propensity"
           bg="#fee2e2"
         />
 
         {/* BOTTOM RIGHT = Q3 (Low ICP + High Propensity) */}
         <Quadrant
-          title="Q3 -> Opportunistic"
+          title="Q3 → Opportunistic"
           desc="Low ICP + High Propensity"
           bg="#fef9c3"
         />
@@ -96,7 +97,7 @@ export default function ICPQuadrantChart({ icp, propensity }) {
         <div
           className="position-absolute top-0 h-100"
           style={{
-            
+            left: `${PROP_HIGH}%`,
             width: "2px",
             background: "#111",
             opacity: 0.3,
@@ -182,7 +183,6 @@ export default function ICPQuadrantChart({ icp, propensity }) {
       </div>
 
       {/* ===================== PULSE ANIMATION ===================== */}
-     
     </div>
   );
 }

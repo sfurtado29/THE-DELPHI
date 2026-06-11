@@ -18,8 +18,8 @@ import snowflake.connector
 
 # ── Semantic model file paths in Snowflake stage ──────────────
 _SEMANTIC_MODELS = {
-    "leads":    "@DELPHI_DB.PUBLIC.DELPHI_STAGE/DELPHI_LEADS.yaml",
-    "campaign": "@DELPHI_DB.PUBLIC.DELPHI_STAGE/CAMPAIGN_SUGGESTION.yaml",
+    "leads":    "@DELPHI_DB.PUBLIC.DELPHI_STAGE/CAMPAIGN_DISCOVER.yaml",
+    "campaign": "@DELPHI_DB.PUBLIC.DELPHI_STAGE/CAMPAIGN_DISCOVER.yaml",
 }
 
 

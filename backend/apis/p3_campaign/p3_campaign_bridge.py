@@ -91,11 +91,23 @@ def _run_campaign_lookup(
     industry:   str,
     user_id:    int | None,
 ) -> None:
+    from apis.campaign_suggest.brand_category_service import categorize_brand, UNCATEGORIZED
+
+    state            = get_session(session_id)
+    selected_product = state.get("selected_product", "")
+
+    brand_category = None
+    if selected_product:
+        brand_category = categorize_brand(selected_product)
+        if brand_category == UNCATEGORIZED:
+            brand_category = None
+
     matched_campaigns = []
     try:
         matched_campaigns = find_similar_campaigns(
             geography=geography,
             industry=industry,
+            brand_category=brand_category,
             limit=5,
         )
         print(f"[P3Bridge] {len(matched_campaigns)} campaigns found for {industry}/{geography}")
@@ -103,8 +115,6 @@ def _run_campaign_lookup(
         print(f"[P3Bridge] Campaign lookup failed: {e}")
 
     try:
-        state            = get_session(session_id)
-        selected_product = state.get("selected_product", "")
         recommendation, display_campaigns = generate_recommendation(
             geography=geography,
             industry=industry,
@@ -141,11 +151,11 @@ def _build_display_campaigns(matched_campaigns: list[dict]) -> list[dict]:
     for i, c in enumerate(matched_campaigns[:5]):
         display.append({
             "index":         i + 1,
-            "job_level":     _get(c, "target_job_level"),
-            "job_function":  _get(c, "target_job_function"),
-            "employee_size": _get(c, "target_employee_size"),
-            "revenue_range": _get(c, "target_revenue_size"),
-            "geography":     _get(c, "target_geography"),
+            "job_level":     _get(c, "job_level_desc"),
+            "job_function":  _get(c, "jobfunction_desc"),
+            "employee_size": _get(c, "employee_size_desc"),
+            "revenue_range": _get(c, "revenue_size_desc"),
+            "geography":     _get(c, "location_desc"),
             "quantity":      _get(c, "effective_total_quantity"),
         })
     return display

@@ -152,16 +152,16 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                         </button>
 
                         <button
-                            onClick={handleShareChat}
+                            onClick={() => { if (toggleSidebar) toggleSidebar(); navigate("/Dashboard"); }}
                             className="list-group-item list-group-item-action border rounded-3 d-flex align-items-center gap-3 py-3"
                             style={{ transition: 'all 0.2s ease' }}
                         >
                             <div className="bg-primary bg-opacity-10 p-2 rounded-circle d-flex align-items-center justify-content-center" style={{ width: '35px', height: '35px' }}>
-                                <i className="bi bi-share-fill text-primary"></i>
+                                <i className="bi bi-grid text-primary"></i>
                             </div>
                             <div className="overflow-hidden">
-                                <p className="mb-0 fw-bold text-dark" style={{ fontSize: '12px' }}>Share Chat</p>
-                                <p className="mb-0 text-muted text-truncate" style={{ fontSize: '10px' }}>Copy or share session details</p>
+                                <p className="mb-0 fw-bold text-dark" style={{ fontSize: '12px' }}>Dashboard Overview</p>
+                                <p className="mb-0 text-muted text-truncate" style={{ fontSize: '10px' }}>View your dashboard</p>
                             </div>
                         </button>
 

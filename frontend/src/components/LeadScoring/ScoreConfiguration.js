@@ -1,132 +1,282 @@
-// frontend/src/components/LeadScoring/ScoreConfiguration.js
-import React, { useState, useEffect } from "react";
+// ============================================================================
+// ScoreConfiguration.js
+// Lead Scoring Configuration Management
+// ============================================================================
+
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 export default function ScoreConfiguration() {
   const navigate = useNavigate();
+
+  // ==========================================================================
+  // CONFIG
+  // ==========================================================================
+
   const API_BASE = (process.env.REACT_APP_API_DOMAIN || "").replace(/\/$/, "");
+
+  const API_ENDPOINTS = {
+    PARAMETERS: `${API_BASE}/leadscores/scoring/scoring-config/parameters`,
+    SAVE_WEIGHTS: `${API_BASE}/leadscores/scoring/scoring-config/weights`,
+  };
+
+  // ==========================================================================
+  // STATE
+  // ==========================================================================
 
   const [parameters, setParameters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // ==========================================================================
+  // CALCULATED VALUES
+  // ==========================================================================
+
+  const totalWeight = useMemo(() => {
+    return parameters.reduce(
+      (total, parameter) => total + Number(parameter.weight || 0),
+      0
+    );
+  }, [parameters]);
+
+  // ==========================================================================
+  // LIFECYCLE
+  // ==========================================================================
+
   useEffect(() => {
-    loadParameters();
+    fetchScoringParameters();
   }, []);
 
-  const loadParameters = async () => {
+  // ==========================================================================
+  // API CALLS
+  // ==========================================================================
+
+  const fetchScoringParameters = async () => {
     try {
-      const res = await axios.get(
-        `${API_BASE}/leadscores/scoring/scoring-config/parameters`
-      );
-      setParameters(res.data);
-    } catch {
-      alert("Failed to load scoring parameters");
+      setLoading(true);
+
+      const response = await axios.get(API_ENDPOINTS.PARAMETERS);
+
+      setParameters(response.data || []);
+    } catch (error) {
+      console.error("Failed to load parameters:", error);
+      alert("Unable to load scoring parameters.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleWeightChange = (id, newWeight) => {
-    setParameters(prev =>
-      prev.map(p =>
-        p.parameter_id === id ? { ...p, weight: parseInt(newWeight) || 0 } : p
-      )
-    );
-  };
-
-  const handleSaveWeights = async () => {
-    const totalWeight = parameters.reduce((sum, p) => sum + p.weight, 0);
+  const saveWeights = async () => {
     if (totalWeight !== 100) {
-      alert(`Total weight must be 100%. Current: ${totalWeight}%`);
+      alert(
+        `Total weight must equal 100%. Current total is ${totalWeight}%.`
+      );
       return;
     }
 
     try {
       setSaving(true);
-      await axios.post(
-        `${API_BASE}/leadscores/scoring/scoring-config/weights`,
-        parameters.map(p => ({
-          parameter_id: p.parameter_id,
-          weight: p.weight
-        }))
-      );
-      alert("Weights updated successfully");
-    } catch {
-      alert("Failed to save weights");
+
+      const payload = parameters.map((parameter) => ({
+        parameter_id: parameter.parameter_id,
+        weight: Number(parameter.weight),
+      }));
+
+      await axios.post(API_ENDPOINTS.SAVE_WEIGHTS, payload);
+
+      alert("Scoring weights updated successfully.");
+    } catch (error) {
+      console.error("Failed to save weights:", error);
+      alert("Failed to save scoring weights.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="text-center mt-5">Loading...</div>;
+  // ==========================================================================
+  // EVENT HANDLERS
+  // ==========================================================================
+
+  const handleWeightChange = (parameterId, value) => {
+    const weight = Number(value) || 0;
+
+    setParameters((previous) =>
+      previous.map((parameter) =>
+        parameter.parameter_id === parameterId
+          ? { ...parameter, weight }
+          : parameter
+      )
+    );
+  };
+
+  const openValueConfiguration = (parameterId) => {
+    navigate(`/ScoreConfiguration/values/${parameterId}`);
+  };
+
+  // ==========================================================================
+  // LOADING STATE
+  // ==========================================================================
+
+  if (loading) {
+    return (
+      <div className="container py-5">
+        <div className="text-center">
+          <div
+            className="spinner-border text-primary mb-3"
+            role="status"
+          />
+          <h6 className="text-muted">Loading scoring configuration...</h6>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // UI
+  // ==========================================================================
 
   return (
-    <div className="container mt-5">
-      <div className="card shadow-lg border-0 rounded-4">
-        <div className="card-header bg-primary text-white p-4 d-flex justify-content-between">
-          <div>
-            <h4 className="fw-bold mb-0">Lead Scoring Configuration</h4>
-            <small>Adjust parameter weights (Total must be 100%)</small>
+    <div className="container py-5">
+      <div className="card border-0 shadow-lg rounded-4 overflow-hidden">
+
+        {/* =============================================================== */}
+        {/* HEADER */}
+        {/* =============================================================== */}
+
+        <div className="card-header bg-primary text-white p-4">
+          <div className="d-flex justify-content-between align-items-center">
+
+            <div>
+              <h4 className="fw-bold mb-1">
+                Lead Scoring Configuration
+              </h4>
+
+              <small className="opacity-75">
+                Configure scoring parameter weights.
+                Total weight must equal 100%.
+              </small>
+            </div>
+
+            <div>
+              <span
+                className={`badge fs-6 px-3 py-2 ${
+                  totalWeight === 100
+                    ? "bg-success"
+                    : "bg-warning text-dark"
+                }`}
+              >
+                Total: {totalWeight}%
+              </span>
+            </div>
+
           </div>
-          <span className="badge  text-white fs-5">
-            Total: {parameters.reduce((s, p) => s + p.weight, 0)}%
-          </span>
         </div>
 
+        {/* =============================================================== */}
+        {/* TABLE */}
+        {/* =============================================================== */}
+
         <div className="table-responsive">
-          <table className="table table-hover mb-0">
+          <table className="table table-hover align-middle mb-0">
+
             <thead className="table-light">
               <tr>
                 <th className="ps-4">Parameter</th>
-                <th className="text-center">Weight </th>
-                <th></th>
+                <th className="text-center" width="180">
+                  Weight (%)
+                </th>
+                <th className="text-end pe-4">
+                  Actions
+                </th>
               </tr>
             </thead>
+
             <tbody>
-              {parameters.map(p => (
-                <tr key={p.parameter_id}>
+              {parameters.map((parameter) => (
+                <tr key={parameter.parameter_id}>
+
+                  {/* Parameter Info */}
                   <td className="ps-4">
-                    <strong>{p.parameter_name}</strong>
-                    <div className="small text-muted">{p.parameter_code}</div>
+                    <div className="fw-semibold">
+                      {parameter.parameter_name}
+                    </div>
+
+                    <small className="text-muted">
+                      {parameter.parameter_code}
+                    </small>
                   </td>
+
+                  {/* Weight Input */}
                   <td className="text-center">
                     <input
                       type="number"
+                      min="0"
+                      max="100"
                       className="form-control text-center fw-bold"
-                      style={{ maxWidth: 100, margin: "auto" }}
-                      value={p.weight}
-                      onChange={e =>
-                        handleWeightChange(p.parameter_id, e.target.value)
+                      style={{
+                        maxWidth: "110px",
+                        margin: "0 auto",
+                      }}
+                      value={parameter.weight}
+                      onChange={(e) =>
+                        handleWeightChange(
+                          parameter.parameter_id,
+                          e.target.value
+                        )
                       }
                     />
                   </td>
+
+                  {/* Configure Button */}
                   <td className="text-end pe-4">
                     <button
                       className="btn btn-outline-primary btn-sm"
                       onClick={() =>
-                        navigate(`/ScoreConfiguration/values/${p.parameter_id}`)
+                        openValueConfiguration(
+                          parameter.parameter_id
+                        )
                       }
                     >
                       Configure Values
                     </button>
                   </td>
+
                 </tr>
               ))}
             </tbody>
+
           </table>
         </div>
 
-        <div className="card-footer text-end">
-          <button
-            className="btn btn-primary px-4"
-            onClick={handleSaveWeights}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Save Weights"}
-          </button>
+        {/* =============================================================== */}
+        {/* FOOTER */}
+        {/* =============================================================== */}
+
+        <div className="card-footer bg-white py-3">
+          <div className="d-flex justify-content-end">
+
+            <button
+              className="btn btn-primary px-4"
+              onClick={saveWeights}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                  />
+                  Saving...
+                </>
+              ) : (
+                "Save Weights"
+              )}
+            </button>
+
+          </div>
         </div>
+
       </div>
     </div>
   );

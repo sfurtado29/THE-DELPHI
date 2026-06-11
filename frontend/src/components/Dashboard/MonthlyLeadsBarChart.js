@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Chart as ChartJS,
   BarElement,
   CategoryScale,
   LinearScale,
   Tooltip,
-  Legend
+  Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 
@@ -29,14 +29,14 @@ const MONTHS = [
   { label: "Sep", value: 9 },
   { label: "Oct", value: 10 },
   { label: "Nov", value: 11 },
-  { label: "Dec", value: 12 }
+  { label: "Dec", value: 12 },
 ];
 
 const QUARTERS = {
   Q1: [1, 2, 3],
   Q2: [4, 5, 6],
   Q3: [7, 8, 9],
-  Q4: [10, 11, 12]
+  Q4: [10, 11, 12],
 };
 
 export default function MonthlyLeadsBarChart({ data }) {
@@ -46,80 +46,109 @@ export default function MonthlyLeadsBarChart({ data }) {
     const monthsInQuarter = QUARTERS[quarter];
 
     return {
-      labels: MONTHS
-        .filter(m => monthsInQuarter.includes(m.value))
-        .map(m => m.label),
+      labels: MONTHS.filter((month) =>
+        monthsInQuarter.includes(month.value)
+      ).map((month) => month.label),
 
       datasets: [
         {
-          data: monthsInQuarter.map(m => {
-            const row = data.find(d => d.month === m);
-            return row ? row.lead_count : 0;
+          data: monthsInQuarter.map((monthNumber) => {
+            const monthData = data.find(
+              (item) => item.month === monthNumber
+            );
+
+            return monthData ? monthData.lead_count : 0;
           }),
           backgroundColor: "#4f46e5",
           hoverBackgroundColor: "#4338ca",
           borderRadius: 10,
-          maxBarThickness: 55
-        }
-      ]
+          maxBarThickness: 55,
+        },
+      ],
     };
   }, [data, quarter]);
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+
     plugins: {
-      legend: { display: false },
+      legend: {
+        display: false,
+      },
+
       tooltip: {
         backgroundColor: "#0f172a",
         padding: 12,
         cornerRadius: 10,
-        titleFont: { size: 13 },
-        bodyFont: { size: 13 },
-        displayColors: false
-      }
+        titleFont: {
+          size: 13,
+        },
+        bodyFont: {
+          size: 13,
+        },
+        displayColors: false,
+      },
     },
+
     scales: {
       x: {
-        grid: { display: false },
+        grid: {
+          display: false,
+        },
+
         ticks: {
           color: "#64748b",
-          font: { size: 12, weight: "500" }
-        }
+          font: {
+            size: 12,
+            weight: "500",
+          },
+        },
       },
+
       y: {
         grid: {
           color: "#e5e7eb",
-          borderDash: [4, 4]
+          borderDash: [4, 4],
         },
+
         ticks: {
           color: "#64748b",
-          font: { size: 12 }
-        }
-      }
-    }
+          font: {
+            size: 12,
+          },
+        },
+      },
+    },
   };
 
   return (
     <>
-      {/* Quarter Pills */}
+      {/* Quarter Selector */}
       <div className="d-flex justify-content-end mb-3">
         <div
           className="d-flex bg-light rounded-pill p-1 shadow-sm"
           style={{ gap: "4px" }}
         >
-          {Object.keys(QUARTERS).map(q => (
+          {Object.keys(QUARTERS).map((selectedQuarter) => (
             <button
-              key={q}
-              onClick={() => setQuarter(q)}
+              key={selectedQuarter}
+              type="button"
+              onClick={() => setQuarter(selectedQuarter)}
               className="btn btn-sm px-3 rounded-pill fw-semibold"
               style={{
-                backgroundColor: quarter === q ? "#4f46e5" : "transparent",
-                color: quarter === q ? "#fff" : "#475569",
-                transition: "all 0.25s ease"
+                backgroundColor:
+                  quarter === selectedQuarter
+                    ? "#4f46e5"
+                    : "transparent",
+                color:
+                  quarter === selectedQuarter
+                    ? "#ffffff"
+                    : "#475569",
+                transition: "all 0.25s ease",
               }}
             >
-              {q}
+              {selectedQuarter}
             </button>
           ))}
         </div>

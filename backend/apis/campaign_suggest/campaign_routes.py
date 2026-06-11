@@ -41,6 +41,7 @@ from .campaign_cortex_service import (
     find_similar_campaigns,
     get_campaign_icp_details,
 )
+from .brand_category_service import categorize_brand, UNCATEGORIZED
 from .campaign_profile import get_user_products
 from .campaign_suggestions import get_geography_suggestions, get_industry_suggestions
 from .campaign_nlp import (
@@ -237,10 +238,17 @@ def _handle_ask_industry(session_id: str, state: dict, user_input: str) -> dict:
 
     update_campaign_session(session_id, industry=industry)
 
+    # Categorize the user's selected product/brand so we can also surface
+    # campaigns run for OTHER brands in the same B2B category.
+    brand_category = categorize_brand(state["brand"])
+    if brand_category == UNCATEGORIZED:
+        brand_category = None
+
     # Query Cortex for matching past campaigns
     campaigns = find_similar_campaigns(
         geography=state["geography"],
         industry=industry,
+        brand_category=brand_category,
         limit=5,
     )
 
@@ -472,26 +480,19 @@ def _build_handoff_context(state: dict) -> dict:
 def _format_campaigns(campaigns: list[dict]) -> list[dict]:
     """
     Normalise Cortex campaign rows for the frontend.
-
-    vw_campaign_targeting_context returns lowercase snake_case columns:
-        campaign_code, campaign_information, client_name,
-        effective_total_quantity, insertion_order_number,
-        target_employee_size, target_revenue_size
+    Column names match CAMPAIGN_DISCOVER.yaml base table definitions.
     """
     out = []
     for c in campaigns:
-        # Normalise keys to lowercase for safe lookup regardless of
-        # whether Cortex returns them upper or lower case.
         row = {k.lower(): v for k, v in c.items()}
 
         out.append({
-            # campaign_code is the primary identifier from the view
-            "campaign_code":          row.get("campaign_code") or "",
-            "campaign_name":          row.get("campaign_information") or "Unnamed Campaign",
-            "client_name":            row.get("client_name") or "",
+            "campaign_code":          row.get("campaign_id") or "",
+            "campaign_name":          row.get("campaign_desc") or "Unnamed Campaign",
+            "client_name":            "",
             "insertion_order_number": row.get("insertion_order_number") or "",
-            "target_employee_size":   row.get("target_employee_size") or "",
-            "target_revenue_size":    row.get("target_revenue_size") or "",
+            "target_employee_size":   row.get("employee_size_desc") or "",
+            "target_revenue_size":    row.get("revenue_size_desc") or "",
             "total_quantity":         row.get("effective_total_quantity") or "",
         })
     return out
@@ -555,8 +556,8 @@ def _pick_campaign(user_input: str, campaigns: list[dict]) -> dict | None:
     for c in campaigns:
         # campaigns list contains raw Cortex rows (before _format_campaigns)
         raw = {k.lower(): v for k, v in c.items()}
-        name   = (raw.get("campaign_information") or "").lower()
-        client = (raw.get("client_name") or "").lower()
+        name   = (raw.get("campaign_desc") or "").lower()
+        code   = (raw.get("campaign_id") or "").lower()
         if name and name in lower:
             return c
         if client and client in lower:

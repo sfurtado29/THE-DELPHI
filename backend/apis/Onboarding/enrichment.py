@@ -142,7 +142,7 @@ NOISE_PHRASES = {
     "see all", "discover more", "contact us", "get started", "shop now",
     "join us", "best performance ever", "case study", "click here",
     "customers also viewed", "featured products", "follow us",
-    "reinvent with ai", "what's trending",
+    "reinvent with ai", "what's trending","1-800-MY-APPLE",
 }
 
 TARGET_CONTAINERS = (

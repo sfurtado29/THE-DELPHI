@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import "./intellegence.css";
 
 const API_BASE   = "http://127.0.0.1:8000";
+const API_HOST = (process.env.REACT_APP_API_DOMAIN || process.env.REACT_APP_API_BASE || API_BASE).replace(/\/$/, "");
 const SESSION_ID = `user_${Math.random().toString(36).slice(2, 9)}`;
 
 // ── Field definitions ────────────────────────────────────────────────────────
@@ -75,10 +76,111 @@ function parseLeadText(text) {
 function normalizeRow(row) {
   if (typeof row === "string") return parseLeadText(row) || { Profile: row };
   if (row && typeof row === "object") {
+    const map = {
+      company_name:         "Company",
+      company:              "Company",
+      campaign_information: "Company",
+      name:                 "Company",
+      client_name:          "Company",
+      COMPANY_NAME:         "Company",
+      COMPANY:              "Company",
+
+      FIRST_NAME:           "First Name",
+      first_name:           "First Name",
+      LAST_NAME:            "Last Name",
+      last_name:            "Last Name",
+      contact_name:         "Contact",
+      contact:              "Contact",
+      CONTACT_NAME:         "Contact",
+      CONTACT:              "Contact",
+
+      job_title:            "Job Title",
+      title:                "Job Title",
+      job_title_desc:       "Job Title",
+      JOB_TITLE:            "Job Title",
+      JOB_TITLE_DESC:       "Job Title",
+      TITLE:                "Job Title",
+
+      job_level:            "Seniority",
+      job_level_desc:       "Seniority",
+      seniority:            "Seniority",
+      JOB_LEVEL:            "Seniority",
+      JOB_LEVEL_DESC:       "Seniority",
+      SENIORITY:            "Seniority",
+
+      industry:             "Industry",
+      target_industry:      "Industry",
+      INDUSTRY:             "Industry",
+      TARGET_INDUSTRY:      "Industry",
+
+      job_function:         "Job Function",
+      jobfunction_desc:     "Job Function",
+      JOBFUNCTION_DESC:     "Job Function",
+      JOB_FUNCTION:         "Job Function",
+      JOB_FUNCTION_DESC:    "Job Function",
+
+      hq_location:          "Geography",
+      country:              "Geography",
+      target_geography:     "Geography",
+      location_desc:        "Geography",
+      HQ_LOCATION:          "Geography",
+      COUNTRY:              "Geography",
+      TARGET_GEOGRAPHY:     "Geography",
+      LOCATION_DESC:        "Geography",
+
+      employees:            "Employee Size",
+      target_employee_size: "Employee Size",
+      employee_size_desc:   "Employee Size",
+      EMPLOYEES:            "Employee Size",
+      TARGET_EMPLOYEE_SIZE: "Employee Size",
+      EMPLOYEE_SIZE_DESC:   "Employee Size",
+      EMPLOYEE_SIZE:        "Employee Size",
+
+      revenue_size:         "Revenue",
+      target_revenue_size:  "Revenue",
+      REVENUE_SIZE:         "Revenue",
+      TARGET_REVENUE_SIZE:  "Revenue",
+      REVENUE_RANGE:        "Revenue",
+
+      email:                "Email",
+      email_address:        "Email",
+      EMAIL:                "Email",
+      EMAIL_ADDRESS:        "Email",
+
+      phone:                "Phone",
+      PHONE:                "Phone",
+
+      icp_fit:              "ICP Fit",
+      icp_score:            "ICP Fit",
+      ICP_FIT:              "ICP Fit",
+      ICP_SCORE:            "ICP Fit",
+      propensity_score:     "Propensity",
+      propensity:           "Propensity",
+      PROPENSITY_SCORE:     "Propensity",
+      PROPENSITY:           "Propensity",
+
+      LEAD_ID:              "__LEAD_ID__",
+      lead_id:              "__LEAD_ID__",
+    };
+
     const out = {};
     for (const [k, v] of Object.entries(row)) {
-      const label = k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-      out[label] = v ?? "—";
+      const target = map[k] || map[String(k).toUpperCase()] || null;
+      if (target && target !== "__LEAD_ID__") {
+        if (target === "First Name") {
+          out["Contact"] = [row["FIRST_NAME"] || row["first_name"] || "", row["LAST_NAME"] || row["last_name"] || ""].filter(Boolean).join(" ") || (v ?? "—");
+          continue;
+        }
+        if (target === "Last Name") continue;
+        if (!(target in out)) out[target] = v ?? "—";
+      }
+    }
+    for (const [k, v] of Object.entries(row)) {
+      const target = map[k] || map[String(k).toUpperCase()] || null;
+      if (!target) {
+        const label = k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        if (!(label in out)) out[label] = v ?? "—";
+      }
     }
     return out;
   }
@@ -86,8 +188,8 @@ function normalizeRow(row) {
 }
 
 const PRIORITY_COLS = [
-  "Company", "Job Title", "Seniority", "Industry",
-  "Job Function", "Domain", "Employee Size", "Revenue", "Geography",
+  "Contact", "Company", "Job Title", "Seniority",
+  "Industry", "Job Function", "Employee Size", "Revenue", "Geography",
 ];
 
 function sortColumns(cols) {
@@ -136,6 +238,21 @@ const INDUSTRY_ICONS = {
   media: "📺", entertainment: "📺",
   telecommunications: "📡",
   agriculture: "🌾",
+  accounting: "📊",
+  consulting: "💼",
+  staffing: "👥",
+  recruiting: "👥",
+  "it services": "🖥️",
+  "information technology": "🖥️",
+  legal: "⚖️",
+  pharmaceuticals: "💊",
+  construction: "🏗️",
+  "food": "🍽️",
+  hospitality: "🏨",
+  sports: "🏆",
+  marketing: "📣",
+  "architecture": "📐",
+  renewables: "♻️",
 };
 
 function IndustryCell({ value }) {
@@ -151,10 +268,10 @@ function IndustryCell({ value }) {
 
 // ── Leads Table ──────────────────────────────────────────────────────────────
 function LeadsTable({ rows }) {
-  const [page, setPage]             = useState(0);
-  const [sortCol, setSortCol]       = useState(null);
-  const [sortDir, setSortDir]       = useState("asc");
-  const [search, setSearch]         = useState("");
+  const [page, setPage]               = useState(0);
+  const [sortCol, setSortCol]         = useState(null);
+  const [sortDir, setSortDir]         = useState("asc");
+  const [search, setSearch]           = useState("");
   const [expandedRow, setExpandedRow] = useState(null);
   const PAGE_SIZE = 15;
 
@@ -223,12 +340,7 @@ function LeadsTable({ rows }) {
           <input
             className="lt-search-input"
             placeholder="Filter results..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0); }}
           />
-          {search && (
-            <button className="lt-search-clear" onClick={() => setSearch("")}>✕</button>
-          )}
         </div>
       </div>
 
@@ -238,63 +350,21 @@ function LeadsTable({ rows }) {
             <tr>
               <th className="lt-th lt-th-num">#</th>
               {columns.map(col => (
-                <th key={col}
-                  className={`lt-th ${sortCol === col ? "lt-th-sorted" : ""}`}
-                  onClick={() => handleSort(col)}
-                >
-                  <span className="lt-th-inner">
-                    {col}
-                    <span className="lt-sort-icon">
-                      {sortCol === col ? (sortDir === "asc" ? "↑" : "↓") : "⇅"}
-                    </span>
-                  </span>
+                <th key={col} className={`lt-th`} onClick={() => handleSort(col)}>
+                  <div className="lt-th-inner">{col}{sortCol===col && <span className="lt-sort-icon">{sortDir==='asc'?' ▲':' ▼'}</span>}</div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {pageRows.map((row, i) => {
-              const absIdx = page * PAGE_SIZE + i;
-              const isExpanded = expandedRow === absIdx;
-              return (
-                <React.Fragment key={absIdx}>
-                  <tr
-                    className={`lt-row ${isExpanded ? "lt-row-expanded" : ""}`}
-                    onClick={() => setExpandedRow(isExpanded ? null : absIdx)}
-                  >
-                    <td className="lt-td lt-td-num">{absIdx + 1}</td>
-                    {columns.map(col => (
-                      <td key={col} className="lt-td">
-                        {col === "Seniority"  ? <SeniorityBadge value={row[col]} /> :
-                         col === "Industry"   ? <IndustryCell value={row[col]} /> :
-                         col === "Company"    ? <span className="lt-cell-company">{row[col] || "—"}</span> :
-                         col === "Job Title"  ? <span className="lt-cell-jobtitle">{row[col] || "—"}</span> :
-                         <span className={row[col] && row[col] !== "—" ? "lt-cell-text" : "lt-cell-dash"}>
-                           {row[col] || "—"}
-                         </span>
-                        }
-                      </td>
-                    ))}
-                  </tr>
-                  {isExpanded && (
-                    <tr className="lt-detail-row">
-                      <td colSpan={columns.length + 1}>
-                        <div className="lt-detail-grid">
-                          {columns.map(col =>
-                            row[col] && row[col] !== "—" && (
-                              <div key={col} className="lt-detail-item">
-                                <span className="lt-detail-label">{col}</span>
-                                <span className="lt-detail-value">{row[col]}</span>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
+            {pageRows.map((row, idx) => (
+              <tr key={row.__id || idx} className={`lt-row ${expandedRow === idx ? 'lt-row-expanded' : ''}`} onClick={() => setExpandedRow(expandedRow === idx ? null : idx)}>
+                <td className="lt-td lt-td-num">{page * PAGE_SIZE + idx + 1}</td>
+                {columns.map(col => (
+                  <td key={col} className="lt-td">{row[col] ?? '—'}</td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -320,7 +390,47 @@ function LeadsTable({ rows }) {
   );
 }
 
-// ── Sidebar Panel ────────────────────────────────────────────────────────────
+// ── History Item with 3-dot menu ───────────────────────────────────────────
+function HistoryItem({ chat, isActive, onLoad, onStar, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div
+      className={`history-item ${isActive ? "active" : ""}`}
+      onClick={() => { onLoad(chat); setOpen(false); }}
+    >
+      <span className="history-item-title">{chat.title}</span>
+      <div className="hist-menu-wrap" ref={menuRef}>
+        <button
+          className="hist-dots-btn"
+          title="Options"
+          onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        >⋯</button>
+        {open && (
+          <div className="hist-dropdown">
+            <button className="hist-dd-item" onClick={e => { e.stopPropagation(); onStar(chat.id); setOpen(false); }}>
+              {chat.starred ? "★ Unstar" : "☆ Star"}
+            </button>
+            <button className="hist-dd-item danger" onClick={e => { e.stopPropagation(); onDelete(chat.id); setOpen(false); }}>
+              🗑 Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SidebarPanel({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -334,7 +444,6 @@ function SidebarPanel({ title, children, defaultOpen = true }) {
   );
 }
 
-// ── Context Pill ─────────────────────────────────────────────────────────────
 function ContextPill({ label, value }) {
   return (
     <div className="context-pill">
@@ -344,7 +453,6 @@ function ContextPill({ label, value }) {
   );
 }
 
-// ── Typing Dots ──────────────────────────────────────────────────────────────
 function TypingDots() {
   return (
     <div className="typing-indicator">
@@ -353,25 +461,67 @@ function TypingDots() {
   );
 }
 
-// ── Suggestion Group ─────────────────────────────────────────────────────────
-function SuggestionGroup({ field, items, onSelect }) {
+function SuggestionGroup({ field, items, onSelect, disabled = false }) {
   return (
     <div className="suggestion-group">
       <div className="suggestion-group-label">
         <span>{SUGGESTION_LABELS[field] || field}</span>
       </div>
       <div className="suggestion-chips">
-        {items.map(item => (
-          <button key={item} className="chip" onClick={() => onSelect(item)}>
-            {item}
-          </button>
-        ))}
+        {Array.isArray(items) && (() => {
+          const uniq = Array.from(new Set(items.map(it => (typeof it === 'string' ? it.trim() : it))));
+          return uniq.map(item => (
+            <button key={item} className={`chip ${disabled ? 'disabled' : ''}`} onClick={() => !disabled && onSelect(item)} disabled={disabled}>
+              {item}
+            </button>
+          ));
+        })()}
       </div>
     </div>
   );
 }
 
-// ── Progress Bar ─────────────────────────────────────────────────────────────
+function SuggestionCard({ field, items, onContinue, disabled = false, contextValues = null }) {
+  const [selected, setSelected] = React.useState([]);
+  const handleChipClick = (it) => {
+    if (disabled) return;
+    setSelected(prev => {
+      try {
+        const copy = Array.isArray(prev) ? [...prev] : [];
+        const idx = copy.indexOf(it);
+        if (idx >= 0) copy.splice(idx, 1);
+        else copy.push(it);
+        return copy;
+      } catch (e) { return prev; }
+    });
+  };
+
+  const isSelected = (it) => {
+    const sArr = Array.isArray(selected) ? selected : [];
+    const cArr = Array.isArray(contextValues) ? contextValues : (contextValues ? [contextValues] : []);
+    return sArr.includes(it) || cArr.includes(it);
+  };
+
+  return (
+    <div className="suggestion-group" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="suggestion-group-label"><span>{SUGGESTION_LABELS[field] || field}</span></div>
+      <div className="suggestion-chips">
+        {Array.isArray(items) && (() => {
+          const uniq = Array.from(new Set(items.map(it => (typeof it === 'string' ? it.trim() : it))));
+          return uniq.map(it => (
+            <button key={it} className={`chip ${isSelected(it) ? 'selected' : ''}`} onClick={() => handleChipClick(it)}>{it}</button>
+          ));
+        })()}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <button className="continue-btn" onClick={() => onContinue(selected)} disabled={!Array.isArray(selected) || selected.length === 0}>
+          Continue →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProgressBar({ filled, total }) {
   const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
   return (
@@ -384,7 +534,6 @@ function ProgressBar({ filled, total }) {
   );
 }
 
-// ── Phase Badge ──────────────────────────────────────────────────────────────
 function PhaseBadge({ phase }) {
   if (!phase || phase === "complete") return null;
   const isProduct = phase === "product";
@@ -399,21 +548,110 @@ function PhaseBadge({ phase }) {
   );
 }
 
+// ── Helper: extract leads array from any response shape ─────────────────────
+function extractLeads(data) {
+  if (!data) return null;
+
+  // If the response *is* an array of leads
+  if (Array.isArray(data) && data.length > 0) return data;
+
+  // Common property names (case-sensitive)
+  const candidate = data.leads || data.data || data.results || data.rows || data.records;
+  if (Array.isArray(candidate) && candidate.length > 0) return candidate;
+
+  // Be more permissive: if any top-level property is an array of objects,
+  // treat that as the leads payload (handles variations like 'LEADS' or
+  // vendor-specific keys).
+  try {
+    for (const k of Object.keys(data || {})) {
+      const v = data[k];
+      if (Array.isArray(v) && v.length > 0 && v.every(it => typeof it === "object")) return v;
+    }
+  } catch (e) {
+    // ignore and fall through
+  }
+
+  return null;
+}
+
+// Normalize suggestions object from backend: ensure arrays are deduped and trimmed
+function normalizeSuggestions(sugs) {
+  if (!sugs) return {};
+  // If an array is provided, return a deduped array
+  if (Array.isArray(sugs)) {
+    const seen = new Set();
+    return sugs
+      .map(it => (typeof it === 'string' ? it.trim() : it))
+      .filter(it => {
+        if (typeof it === 'string') {
+          if (!it) return false;
+          if (seen.has(it)) return false;
+          seen.add(it);
+          return true;
+        }
+        return true;
+      });
+  }
+  if (typeof sugs !== 'object') return {};
+  const out = {};
+  try {
+    for (const k of Object.keys(sugs)) {
+      const v = sugs[k];
+      if (Array.isArray(v)) {
+        const seen = new Set();
+        out[k] = v
+          .map(it => (typeof it === 'string' ? it.trim() : it))
+          .filter(it => {
+            if (typeof it === 'string') {
+              if (!it) return false;
+              if (seen.has(it)) return false;
+              seen.add(it);
+              return true;
+            }
+            return true;
+          });
+      } else {
+        out[k] = v;
+      }
+    }
+  } catch (e) { return {}; }
+  return out;
+}
+
+// Convert a plain-text ICP statement (paragraphs separated by blank lines)
+// into HTML for use with dangerouslySetInnerHTML.
+function formatIcpNarrative(statement) {
+  if (!statement) return '';
+  const escaped = String(statement)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped
+    .split(/\n\s*\n/)
+    .map(p => `<p>${p.trim().replace(/\n/g, '<br/>')}</p>`)
+    .join('');
+}
+
 // ═══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
 
 export default function Intellegence() {
   const [messages,      setMessages]      = useState([]);
+  const [chatSelectedProducts, setChatSelectedProducts] = useState([]);
+  const [chatProductInput, setChatProductInput] = useState("");
+  const [singleCardSelections, setSingleCardSelections] = useState({});
   const [input,         setInput]         = useState("");
   const [loading,       setLoading]       = useState(false);
   const [context,       setContext]       = useState({});
   const [suggestions,   setSuggestions]   = useState({});
+  const [isFetching,    setIsFetching]    = useState(false);
   const [phase,         setPhase]         = useState("product");
+  const [icpStage,      setIcpStage]      = useState(null);
+  const [icpLeads,      setIcpLeads]      = useState(null);
   const [chatHistory,   setChatHistory]   = useState([]);
   const [activeChatId,  setActiveChatId]  = useState(null);
   const [chatTitle,     setChatTitle]     = useState("");
-  const [isStarred,     setIsStarred]     = useState(false);
   const [sidebarOpen,   setSidebarOpen]   = useState(true);
   const [darkMode,      setDarkMode]      = useState(() => {
     return localStorage.getItem("delphi-theme") === "dark";
@@ -422,7 +660,7 @@ export default function Intellegence() {
   const bottomRef      = useRef(null);
   const textareaRef    = useRef(null);
   const sessionRef     = useRef(SESSION_ID);
-  // Apply theme to document root
+
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) {
@@ -434,12 +672,10 @@ export default function Intellegence() {
     }
   }, [darkMode]);
 
-  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, suggestions, loading]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -447,7 +683,6 @@ export default function Intellegence() {
     ta.style.height = Math.min(ta.scrollHeight, 140) + "px";
   }, [input]);
 
-  // Load user info from localStorage
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
   }, []);
@@ -489,56 +724,292 @@ export default function Intellegence() {
     setMessages(prev => [...prev, { id: Date.now() + Math.random(), ...msg }]);
   }, []);
 
+  // Push a completed ICP statement as an "icp" card with accept/restart actions.
+  const pushIcpCard = useCallback((statement) => {
+    pushMessage({
+      role: 'bot', type: 'icp',
+      narrative: formatIcpNarrative(statement),
+      quick_replies: ['Accept ICP', 'Start over'],
+    });
+  }, [pushMessage]);
+
+  // Poll /icp/chat (with message "continue") until the ICP statement is ready.
+  const pollIcpReady = useCallback(async (attempt = 0) => {
+    const userId = user.user_id || user.id || 1;
+    const MAX = 12;
+    const DELAY = 2500;
+
+    if (attempt >= MAX) {
+      setIsFetching(false);
+      pushMessage({ role: 'bot', text: 'ICP generation is taking longer than expected. Please try again in a moment.' });
+      return;
+    }
+
+    await new Promise(r => setTimeout(r, DELAY));
+
+    try {
+      const res = await fetch(`${API_HOST}/icp/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionRef.current, user_id: userId, message: 'continue' }),
+      });
+      const data = await res.json();
+
+      if (data.stage) setIcpStage(data.stage);
+
+      if (data.status === 'complete' && data.statement) {
+        setIsFetching(false);
+        pushIcpCard(data.statement);
+      } else {
+        pollIcpReady(attempt + 1);
+      }
+    } catch (err) {
+      pollIcpReady(attempt + 1);
+    }
+  }, [pushMessage, pushIcpCard, user]);
+
+  // Shared handler for any /icp/chat response, regardless of which stage triggered it.
+  const handleIcpChatResponse = useCallback((data) => {
+    if (data.error) {
+      pushMessage({ role: 'bot', text: data.error });
+      setIsFetching(false);
+      return;
+    }
+    if (data.stage) setIcpStage(data.stage);
+
+    if (data.stage === 'ask_product') {
+      if (data.response) pushMessage({ role: 'bot', text: data.response });
+      const items = Array.isArray(data.products) ? data.products.map(p => (typeof p === 'string' ? { label: p } : p)) : [];
+      if (items.length > 0) pushMessage({ role: 'bot', type: 'products', products: items });
+      setIsFetching(false);
+    } else if (data.stage === 'fetching') {
+      if (data.response) pushMessage({ role: 'bot', text: data.response });
+      setIsFetching(true);
+      pollIcpReady(0);
+    } else if (data.status === 'complete' && data.statement) {
+      setIsFetching(false);
+      pushIcpCard(data.statement);
+    } else if (data.response) {
+      pushMessage({ role: 'bot', text: data.response });
+      setIsFetching(false);
+    }
+  }, [pushMessage, pollIcpReady, pushIcpCard]);
+
+  // Kick off (or restart) the ICP flow via /icp/chat using a trigger phrase.
+  const restartIcpFlow = useCallback(async () => {
+    const userId = user.user_id || user.id || 1;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_HOST}/icp/chat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionRef.current, user_id: userId, message: 'Create ICP profile' }),
+      });
+      const data = await res.json();
+      handleIcpChatResponse(data);
+    } catch (e) {
+      pushMessage({ role: 'bot', text: 'Failed to start the ICP flow.' });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, handleIcpChatResponse, pushMessage]);
+
+  const initiateICP = useCallback(async () => {
+    pushMessage({ role: 'user', text: 'Create Ideal Company Profile' });
+    setIcpLeads(null);
+    setChatSelectedProducts([]);
+    await restartIcpFlow();
+  }, [pushMessage, restartIcpFlow]);
+
   const sendMessage = useCallback(async (text) => {
-    const finalText = (text || input).trim();
+    const raw = (typeof text !== 'undefined' && text !== null) ? text : input;
+    let finalText = '';
+    if (typeof raw === 'string') finalText = raw.trim();
+    else if (Array.isArray(raw)) finalText = raw.join(', ').trim();
+    else if (typeof raw === 'number') finalText = String(raw).trim();
+    else finalText = '';
+
     if (!finalText || loading) return;
+
+    // We'll handle simple client-side lead operations after showing the user's message
+
+    const userId = user.user_id || user.id || null;
+
+    if (messages.length === 0 && !activeChatId) {
+      const newId = Date.now();
+      const newChat = { id: newId, title: finalText.slice(0, 42), messages: [], context: {} };
+      setChatHistory(prev => [newChat, ...prev]);
+      setActiveChatId(newId);
+    }
 
     pushMessage({ role: "user", text: finalText });
     setInput("");
+
     setLoading(true);
     setSuggestions({});
 
+    // ── Refine leads (after "Accept ICP") ──
+    if (icpLeads !== null) {
+      try {
+        const res = await fetch(`${API_HOST}/icp/refine`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionRef.current, message: finalText }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          pushMessage({ role: "bot", text: data.error });
+        } else {
+          const leads = data.leads || [];
+          const count = data.lead_count ?? leads.length;
+          pushMessage({ role: "bot", text: `Refined to ${count} lead${count === 1 ? '' : 's'}.` });
+          pushMessage({ role: "bot", table: leads, leads_count: count });
+          setIcpLeads(leads);
+        }
+      } catch (err) {
+        console.error(err);
+        pushMessage({ role: "bot", text: "Something went wrong applying that filter. Please try again." });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── ICP product/geography/industry flow ──
+    if (icpStage && icpStage !== 'profile_ready' && icpStage !== 'accepted') {
+      try {
+        const res = await fetch(`${API_HOST}/icp/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionRef.current, user_id: userId, message: finalText }),
+        });
+        const data = await res.json();
+        handleIcpChatResponse(data);
+      } catch (err) {
+        console.error(err);
+        pushMessage({ role: "bot", text: "Something went wrong connecting to the server. Please try again." });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── General intelligence chat ──
     try {
-      const res = await fetch(`${API_BASE}/context/chat`, {
+      const res = await fetch(`${API_HOST}/context/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionRef.current, message: finalText }),
       });
 
       const data = await res.json();
-      console.log("[API Response]", data);
 
-      if (data.context)  setContext(data.context);
-      if (data.phase)    setPhase(data.phase);
+      if (data.context) setContext(data.context);
+      if (data.phase)   setPhase(data.phase);
 
-      if (data.status === "complete") {
-        if (data.summary) pushMessage({ role: "bot", text: data.summary });
-        pushMessage({ role: "bot", table: data.leads || data.data || [] });
-        setSuggestions({});
-        setPhase("complete");
-      } else {
-        if (data.response) {
-          pushMessage({
-            role: "bot",
-            text: data.response,
-            editApplied: data.edit_applied || null,
-          });
-        }
-        if (data.suggestions) {
-          const filtered = {};
-          for (const [k, v] of Object.entries(data.suggestions)) {
-            if (Array.isArray(v) && v.length > 0) filtered[k] = v;
-          }
-          setSuggestions(filtered);
-        }
+      if (data.response) {
+        pushMessage({ role: "bot", text: data.response, editApplied: data.edit_applied || null });
       }
+
+      setSuggestions(normalizeSuggestions(data.suggestions ?? {}));
+
+      const leads = extractLeads(data);
+      if (leads && leads.length > 0) {
+        const count = data.leads_count || data.count || leads.length;
+        pushMessage({ role: "bot", table: leads, leads_count: count });
+        setSuggestions({});
+      }
+
+      if (data.status === "completed" || data.status === "complete") {
+        if (data.summary) pushMessage({ role: "bot", text: data.summary });
+        setSuggestions({});
+      }
+
     } catch (err) {
       console.error(err);
       pushMessage({ role: "bot", text: "Something went wrong connecting to the server. Please try again." });
     } finally {
       setLoading(false);
     }
-  }, [input, loading, pushMessage]);
+  }, [input, loading, pushMessage, messages, activeChatId, user, icpStage, icpLeads, handleIcpChatResponse]);
+
+  // Toggle selection for single-card suggestion groups (e.g., geography)
+  const toggleSingleSelection = (field, item) => {
+    setSingleCardSelections(prev => {
+      const copy = { ...(prev || {}) };
+      const arr = Array.isArray(copy[field]) ? [...copy[field]] : [];
+      const idx = arr.indexOf(item);
+      if (idx >= 0) arr.splice(idx, 1); else arr.push(item);
+      copy[field] = arr;
+      return copy;
+    });
+  };
+
+  const handleSingleContinue = (field) => {
+    const sel = Array.isArray(singleCardSelections[field]) ? singleCardSelections[field] : [];
+    if (!sel.length) return;
+    setContext(prev => {
+      try {
+        const prevVal = prev?.[field];
+        if (Array.isArray(prevVal)) return { ...prev, [field]: Array.from(new Set([...prevVal, ...sel])) };
+        return { ...prev, [field]: sel.length === 1 ? sel[0] : sel };
+      } catch (e) { return prev; }
+    });
+    // Preserve visible suggestion chips immediately — calling sendMessage
+    // normally clears `suggestions` at the start. Capture current suggestions
+    // and restore them so chips remain present while the request runs.
+    const currentSugs = suggestions;
+    sendMessage(sel).catch(() => {});
+    setSuggestions(currentSugs);
+    // keep suggestions visible; don't clear them
+  };
+
+  // Handle ICP card quick-reply actions: "Accept ICP" fetches matching leads
+  // via /icp/accept; "Start over" resets and restarts the ICP flow.
+  const handleIcpAction = async (qr) => {
+    const text = (qr || "").toString();
+    pushMessage({ role: 'user', text });
+
+    if (text.toLowerCase().includes('accept')) {
+      setIsFetching(true);
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_HOST}/icp/accept`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionRef.current }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          pushMessage({ role: 'bot', text: data.error });
+        } else {
+          const leads = data.leads || [];
+          const count = data.lead_count ?? leads.length;
+          const empNote = data.emp_range ? ` (employee size: ${data.emp_range})` : '';
+          pushMessage({ role: 'bot', text: `Found ${count} matching lead${count === 1 ? '' : 's'}${empNote}. You can refine these results by typing a filter below.` });
+          pushMessage({ role: 'bot', table: leads, leads_count: count });
+          setIcpStage('accepted');
+          setIcpLeads(leads);
+          setSuggestions({});
+        }
+      } catch (e) {
+        console.error(e);
+        pushMessage({ role: 'bot', text: 'Something went wrong fetching leads. Please try again.' });
+      } finally {
+        setIsFetching(false);
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (text.toLowerCase().includes('start over')) {
+      setIcpStage(null);
+      setIcpLeads(null);
+      setChatSelectedProducts([]);
+      await restartIcpFlow();
+      return;
+    }
+
+    await sendMessage(text);
+  };
 
   const handleKeyDown = e => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -548,12 +1019,13 @@ export default function Intellegence() {
   };
 
   const startNewChat = async () => {
-    if (messages.length > 0) {
-      const title = messages.find(m => m.role === "user")?.text?.slice(0, 42) || "Chat";
-      setChatHistory(prev => [{ id: Date.now(), title, messages, context }, ...prev]);
+    if (messages.length > 0 && activeChatId) {
+      setChatHistory(prev => prev.map(c =>
+        c.id === activeChatId ? { ...c, messages, context } : c
+      ));
     }
     try {
-      await fetch(`${API_BASE}/context/reset`, {
+      await fetch(`${API_HOST}/context/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionRef.current }),
@@ -579,24 +1051,11 @@ export default function Intellegence() {
   const totalFilled           = filledProductFields.length + filledTargetingFields.length;
   const hasAnyContext         = totalFilled > 0;
 
-  const overallPct = Math.round((totalFilled / ALL_FIELDS.length) * 100);
-
   return (
     <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
 
       {/* ══ SIDEBAR ══════════════════════════════════════════════ */}
       <aside className="sidebar">
-
-        {/* Header */}
-        <div className="sidebar-header">
-          <button
-            className="sidebar-toggle"
-            onClick={() => setSidebarOpen(v => !v)}
-            title="Collapse sidebar"
-          >‹</button>
-        </div>
-
-        {/* New chat */}
         <button className="new-chat-btn" onClick={startNewChat}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
             <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
@@ -604,10 +1063,8 @@ export default function Intellegence() {
           New Search
         </button>
 
-        {/* Phase */}
         <PhaseBadge phase={phase} />
 
-        {/* Context panels */}
         <div className="sidebar-context-scroll">
           {filledProductFields.length > 0 && (
             <SidebarPanel title="Product & Campaign" defaultOpen>
@@ -633,27 +1090,16 @@ export default function Intellegence() {
           )}
         </div>
 
-        {/* My Campaign placeholder — section coming soon */}
         <div className="sidebar-campaign-placeholder" />
 
-        {/* Starred + History pinned to bottom */}
         <div className="sidebar-bottom">
           {chatHistory.some(c => c.starred) && (
             <div className="sidebar-history">
               <div className="history-section-label">⭐ Starred</div>
               <div className="history-list">
                 {chatHistory.filter(c => c.starred).map(chat => (
-                  <div
-                    key={chat.id}
-                    className={`history-item ${activeChatId === chat.id ? "active" : ""}`}
-                    onClick={() => loadChat(chat)}
-                  >
-                    <span className="history-item-title">{chat.title}</span>
-                    <span className="history-item-actions">
-                      <button className="hist-action-btn starred" title="Unstar" onClick={e => { e.stopPropagation(); toggleStarChat(chat.id); }}>⭐</button>
-                      <button className="hist-action-btn delete" title="Delete" onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}>🗑</button>
-                    </span>
-                  </div>
+                  <HistoryItem key={chat.id} chat={chat} isActive={activeChatId === chat.id}
+                    onLoad={loadChat} onStar={toggleStarChat} onDelete={deleteChat} />
                 ))}
               </div>
             </div>
@@ -662,23 +1108,9 @@ export default function Intellegence() {
           <div className="sidebar-history">
             <div className="history-section-label">History</div>
             <div className="history-list">
-              {messages.length > 0 && !activeChatId && (
-                <div className="history-item active">
-                  {messages.find(m => m.role === "user")?.text?.slice(0, 38) || "Current search"}
-                </div>
-              )}
               {chatHistory.filter(c => !c.starred).map(chat => (
-                <div
-                  key={chat.id}
-                  className={`history-item ${activeChatId === chat.id ? "active" : ""}`}
-                  onClick={() => loadChat(chat)}
-                >
-                  <span className="history-item-title">{chat.title}</span>
-                  <span className="history-item-actions">
-                    <button className="hist-action-btn" title="Star" onClick={e => { e.stopPropagation(); toggleStarChat(chat.id); }}>☆</button>
-                    <button className="hist-action-btn delete" title="Delete" onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}>🗑</button>
-                  </span>
-                </div>
+                <HistoryItem key={chat.id} chat={chat} isActive={activeChatId === chat.id}
+                  onLoad={loadChat} onStar={toggleStarChat} onDelete={deleteChat} />
               ))}
               {chatHistory.length === 0 && messages.length === 0 && (
                 <p className="history-empty">Your searches will appear here</p>
@@ -688,13 +1120,8 @@ export default function Intellegence() {
         </div>
       </aside>
 
-      {/* Collapsed toggle */}
       {!sidebarOpen && (
-        <button
-          className="sidebar-reopen"
-          onClick={() => setSidebarOpen(true)}
-          title="Open sidebar"
-        >›</button>
+        <button className="sidebar-reopen" onClick={() => setSidebarOpen(true)} title="Open sidebar">›</button>
       )}
 
       {/* ══ MAIN PANEL ═══════════════════════════════════════════ */}
@@ -703,43 +1130,115 @@ export default function Intellegence() {
           <span className="chat-title-text">{currentChatTitle || "New Search"}</span>
         </div>
 
-        {/* Delphi hero search (empty state) */}
         {messages.length === 0 && (
           <div className="delphi-hero">
             <div className="delphi-logo">Welcome{user.full_name ? ` ${user.full_name.split(" ")[0].toLowerCase()}` : ""}</div>
-
             <h1 className="delphi-hero-title">How can I help you?</h1>
             <p className="delphi-hero-subtitle">Ask anything about leads, companies, competitors, market intelligence, or industry insights.</p>
 
             <div className="hero-cards">
-              <button className="hero-card" onClick={() => sendMessage("Find high intent leads in SaaS")}> <span>Find high intent leads in SaaS</span> <span className="card-arrow">→</span> </button>
-              <button className="hero-card" onClick={() => sendMessage("Analyze a company")}> <span>Analyze a company</span> <span className="card-arrow">→</span> </button>
-              <button className="hero-card" onClick={() => sendMessage("Monitor competitor activities")}> <span>Monitor competitor activities</span> <span className="card-arrow">→</span> </button>
-              <button className="hero-card" onClick={() => sendMessage("Latest market signals")}> <span>Latest market signals</span> <span className="card-arrow">→</span> </button>
+              <div className="hero-cards-row">
+                <button className="hero-card" onClick={() => initiateICP()}><span>Create Ideal Company Profile</span><span className="card-arrow">→</span></button>
+                <button className="hero-card" onClick={() => sendMessage("Uncover Personas")}><span>Uncover Personas</span><span className="card-arrow">→</span></button>
+                <button className="hero-card" onClick={() => sendMessage("Identify buyer groups")}><span>Identify buyer groups</span><span className="card-arrow">→</span></button>
+                <button className="hero-card" onClick={() => sendMessage("Geo-based personalization")}><span>Geo-based personalization</span><span className="card-arrow">→</span></button>
+              </div>
+              <div className="hero-cards-row">
+                <button className="hero-card" onClick={() => sendMessage("Create TAL")}><span>Create TAL</span><span className="card-arrow">→</span></button>
+                <button className="hero-card" onClick={() => sendMessage("Filter existing TAL to prioritize accounts")}><span>Filter existing TAL to prioritize accounts</span><span className="card-arrow">→</span></button>
+                <button className="hero-card" onClick={() => sendMessage("Uncover industries")}><span>Uncover industries</span><span className="card-arrow">→</span></button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Messages */}
         <div className={`messages-area ${messages.length === 0 ? "no-scroll" : ""}`}>
           {messages.map(msg => (
-            <div key={msg.id} className={`message-row ${msg.role}`}>
-              {msg.role === "bot" && (
-                <div className="bot-avatar" title="Delphi AI">D</div>
-              )}
-              <div className="message-content">
-                {msg.text && <div className="bubble">{msg.text}</div>}
-                {msg.editApplied && (
-                  <div className="edit-badge">
-                    ✓ Updated: {msg.editApplied.field?.replace(/_/g, " ")} → {msg.editApplied.value}
-                  </div>
+            // ── KEY CHANGE: React.Fragment wraps each message so the table
+            //    can render as a sibling OUTSIDE message-content constraints
+            <React.Fragment key={msg.id}>
+              <div className={`message-row ${msg.role}`}>
+                {msg.role === "bot" && (
+                  <div className="bot-avatar" title="Delphi AI">D</div>
                 )}
-                {msg.table !== undefined && <LeadsTable rows={msg.table} />}
+                {msg.role === "user" && (
+                  <div className="user-avatar" title={user.full_name || user.email || 'You'}>{userInitials}</div>
+                )}
+                <div className="message-content">
+                  {msg.text && <div className="bubble">{msg.text}</div>}
+
+                  {/* ── Products picker ── */}
+                  {msg.type === 'products' && Array.isArray(msg.products) && (
+                    <div className="product-card">
+                      <div className="product-card-chips">
+                        {msg.products.map((p, idx) => {
+                          const label = p.label || '';
+                          const selected = chatSelectedProducts.includes(label);
+                          return (
+                            <button key={idx}
+                              className={`chip ${selected ? 'selected' : ''}`}
+                              onClick={() => {
+                                setChatSelectedProducts(prev => prev.includes(label) ? prev.filter(x => x !== label) : [...prev, label]);
+                              }}
+                            >{label}</button>
+                          );
+                        })}
+                      </div>
+                      <div className="product-card-actions">
+                        <input className="product-input" value={chatProductInput} onChange={e => setChatProductInput(e.target.value)}
+                          placeholder="Or type a different product..." />
+                        <button className="mp-manage-btn" onClick={() => {
+                          const v = (chatProductInput||'').trim(); if(!v) return; setChatProductInput('');
+                          setChatSelectedProducts(prev => prev.includes(v) ? prev : [v, ...prev]);
+                        }}>+ Add</button>
+                        <button className="mp-manage-btn primary" onClick={async () => {
+                          if (!chatSelectedProducts.length) { alert('Select at least one product'); return; }
+                          const productText = chatSelectedProducts.join(', ');
+                          setChatSelectedProducts([]);
+                          await sendMessage(productText);
+                        }}>Use Selected</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── ICP card ── */}
+                  {msg.type === 'icp' && (
+                    <div style={{ marginTop: 12 }}>
+                      <div className="icp-card">
+                        <div className="icp-heading">ICP Generated</div>
+                        <div className="icp-body" dangerouslySetInnerHTML={{ __html: msg.narrative || '' }} />
+                        <div className="icp-actions">
+                          {(msg.quick_replies && msg.quick_replies.length > 0
+                            ? msg.quick_replies
+                            : ["Use this profile for my campaign", "Define my own criteria"]
+                          ).map((qr, i) => (
+                            <button key={i} className={`icp-btn ${i===0? 'primary':''}`} onClick={() => handleIcpAction(qr)}>
+                              {qr}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {msg.editApplied && (
+                    <div className="edit-badge">
+                      ✓ Updated: {msg.editApplied.field?.replace(/_/g, " ")} → {msg.editApplied.value}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* ── Leads table renders OUTSIDE message-content so it gets full width ── */}
+              {msg.table !== undefined && (
+                <div className="leads-table-row">
+                  <LeadsTable rows={msg.table} />
+                </div>
+              )}
+            </React.Fragment>
           ))}
 
-          {loading && (
+          {(loading || isFetching) && (
             <div className="message-row bot">
               <div className="bot-avatar">D</div>
               <div className="message-content">
@@ -748,24 +1247,129 @@ export default function Intellegence() {
             </div>
           )}
 
-          {!loading && Object.keys(suggestions).length > 0 && (
+          {(!loading && !isFetching) && (Array.isArray(suggestions) ? (
             <div className="suggestions-area">
-              {Object.entries(suggestions).map(([field, items]) => (
-                <SuggestionGroup key={field} field={field} items={items} onSelect={sendMessage} />
-              ))}
+              <SuggestionGroup field={'suggestions'} items={suggestions} onSelect={sendMessage} />
             </div>
-          )}
+          ) : (suggestions && Object.keys(suggestions).length > 0) ? (
+            <div className="suggestions-area">
+                  {(() => {
+                    // If geography suggestions exist, render them inside a single card
+                    const entries = Object.entries(suggestions || {});
+                    const seen = new Set();
+                    const targetingFields = TARGETING_FIELD_ORDER.filter(f => Array.isArray(suggestions?.[f]) && suggestions[f].length > 0);
+                    const nodes = [];
+
+                    if (targetingFields.length > 0) {
+                      nodes.push(
+                        <div key="single-targeting" className="single-suggestion-card">
+                          {targetingFields.map(field => (
+                            <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div className="suggestion-group-label"><span>{SUGGESTION_LABELS[field] || field}</span></div>
+                              <div className="suggestion-chips">
+                                {suggestions[field].map(it => {
+                                  const label = (typeof it === 'string') ? it.trim() : it;
+                                  const selected = Array.isArray(singleCardSelections[field]) && singleCardSelections[field].includes(label);
+                                  return (
+                                    <button key={field + '::' + label} className={`chip ${selected ? 'selected' : ''}`} onClick={() => toggleSingleSelection(field, label)}>{label}</button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {targetingFields.map(f => (
+                              <button key={`c-${f}`} className="continue-btn" onClick={() => handleSingleContinue(f)}
+                                disabled={!Array.isArray(singleCardSelections[f]) || singleCardSelections[f].length === 0}>
+                                Continue →
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+
+                      // mark seen items so they don't duplicate below
+                      for (const f of targetingFields) {
+                        suggestions[f].forEach(it => seen.add(typeof it === 'string' ? it.trim() : it));
+                      }
+                    }
+
+                    for (const [field, items] of entries) {
+                      if (targetingFields.includes(field)) continue; // already rendered in single card
+                      if (!Array.isArray(items)) {
+                        nodes.push(
+                          <SuggestionCard key={field} field={field} items={items} disabled={isFetching}
+                            contextValues={context?.[field]}
+                            onContinue={(sel) => {
+                              if (!sel) return;
+                              const selectionArray = Array.isArray(sel) ? sel : [sel];
+                              setContext(prev => {
+                                try {
+                                  const prevVal = prev?.[field];
+                                  if (Array.isArray(prevVal)) {
+                                    return { ...prev, [field]: Array.from(new Set([...prevVal, ...selectionArray])) };
+                                  }
+                                  return { ...prev, [field]: selectionArray.length === 1 ? selectionArray[0] : selectionArray };
+                                } catch (e) { return prev; }
+                              });
+                              const currentSugs = suggestions;
+                              sendMessage(selectionArray).catch(() => {});
+                              setSuggestions(currentSugs);
+                            }}
+                          />
+                        );
+                        continue;
+                      }
+                      const filtered = items.filter(it => {
+                        const key = (typeof it === 'string') ? it.trim() : it;
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                      });
+                    nodes.push(
+                      <SuggestionCard key={field} field={field} items={filtered} disabled={isFetching}
+                        contextValues={context?.[field]}
+                          onContinue={(sel) => {
+                            if (!sel) return;
+                            const selectionArray = Array.isArray(sel) ? sel : [sel];
+                            setContext(prev => {
+                              try {
+                                const prevVal = prev?.[field];
+                                if (Array.isArray(prevVal)) {
+                                  return { ...prev, [field]: Array.from(new Set([...prevVal, ...selectionArray])) };
+                                }
+                                return { ...prev, [field]: selectionArray.length === 1 ? selectionArray[0] : selectionArray };
+                              } catch (e) { return prev; }
+                            });
+                            const currentSugs = suggestions;
+                            sendMessage(selectionArray).catch(() => {});
+                            setSuggestions(currentSugs);
+                          }}
+                        />
+                      );
+                    }
+
+                    return nodes;
+                  })()}
+            </div>
+          ) : null)}
 
           <div ref={bottomRef} />
         </div>
 
-        {/* Input: always visible at bottom */}
         <div className="input-zone">
+          {icpLeads !== null && (
+            <div className="refine-banner">
+              <span>Refining ICP leads — type a filter (e.g. "only show leads in California") or</span>
+              <button className="refine-reset-btn" onClick={() => initiateICP()}>Start a new ICP</button>
+            </div>
+          )}
           <div className="input-card">
             <textarea
               ref={textareaRef}
               className="chat-input"
-              placeholder="Type your message here..."
+              placeholder={icpLeads !== null ? "Refine these leads... (e.g. only show leads in California)" : "Type your message here..."}
               value={input}
               rows={1}
               onChange={e => setInput(e.target.value)}
@@ -774,7 +1378,7 @@ export default function Intellegence() {
             <button
               className="send-btn"
               onClick={() => sendMessage()}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || isFetching}
               title="Send (Enter)"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

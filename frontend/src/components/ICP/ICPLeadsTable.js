@@ -1,4 +1,5 @@
 // frontend/src/components/ICP/ICPLeadsTable.js
+
 import React from "react";
 import { getICPQuadrant } from "./icpQuadrant";
 import { ClipLoader } from "react-spinners";
@@ -12,39 +13,42 @@ export default function ICPLeadsTable({
   pageSize,
 }) {
   const totalPages = Math.ceil(total / pageSize);
-  
 
   // Loading UI
   // if (loading) {
   //   return (
   //     <div className="text-center py-5">
-  //       <div className="spinner-border text-primary" role="status"></div>
+  //       <div
+  //         className="spinner-border text-primary"
+  //         role="status"
+  //       ></div>
   //       <div className="mt-2 text-muted small">
   //         Calculating ICP Scores...
-          
   //       </div>
   //     </div>
   //   );
   // }
-  if (loading) {
-  return (
-    <div className="icp-table-loader-wrapper">
-      <div className="text-center">
-        <div className="icp-diamond-loader">
-          <div className="icp-diamond one"></div>
-          <div className="icp-diamond two"></div>
-          <div className="icp-diamond three"></div>
-          <div className="icp-diamond four"></div>
-        </div>
 
-        {/* <div className="icp-loading-text mt-4 text-success">
-           
-                       Calculating <ClipLoader size={15} />
-        </div> */}
+  if (loading) {
+    return (
+      <div className="icp-table-loader-wrapper">
+        <div className="text-center">
+          <div className="icp-diamond-loader">
+            <div className="icp-diamond one"></div>
+            <div className="icp-diamond two"></div>
+            <div className="icp-diamond three"></div>
+            <div className="icp-diamond four"></div>
+          </div>
+
+          {/*
+          <div className="icp-loading-text mt-4 text-success">
+            Calculating <ClipLoader size={15} />
+          </div>
+          */}
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   // Empty UI
   if (!leads.length) {
@@ -77,16 +81,16 @@ export default function ICPLeadsTable({
         <tbody>
           {leads.map((l, idx) => {
             const safePageSize = Number(pageSize);
-            const rank = (page - 1) * safePageSize + idx + 1;
+            const rank =
+              (page - 1) * safePageSize + idx + 1;
+
             const quadrant = getICPQuadrant(
-            Number(l.icp_score),
-            Number(l.propensity_score)
-            
-          );
+              Number(l.icp_score),
+              Number(l.propensity_score)
+            );
 
-
-          //-------------------------------------------------------
-                      // Quadrant Priority Sort
+            //-------------------------------------------------------
+            // Quadrant Priority Sort
             const sortedLeads = [...leads].sort((a, b) => {
               const quadA = getICPQuadrant(
                 Number(a.icp_score),
@@ -98,7 +102,6 @@ export default function ICPLeadsTable({
                 Number(b.propensity_score)
               );
 
-              // Quadrant ranking order
               const quadrantPriority = {
                 Q1: 1, // High ICP + High Propensity
                 Q2: 2, // High ICP + Low Propensity
@@ -106,22 +109,35 @@ export default function ICPLeadsTable({
                 Q4: 4, // Low ICP + Low Propensity
               };
 
-              const rankA = quadrantPriority[quadA?.quadrant] || 99;
-              const rankB = quadrantPriority[quadB?.quadrant] || 99;
+              const rankA =
+                quadrantPriority[quadA?.quadrant] || 99;
+
+              const rankB =
+                quadrantPriority[quadB?.quadrant] || 99;
 
               // 1st Priority: Quadrant order
-              if (rankA !== rankB) return rankA - rankB;
+              if (rankA !== rankB) {
+                return rankA - rankB;
+              }
 
               // 2nd Priority: Higher ICP inside same quadrant
-              if (Number(b.icp_score) !== Number(a.icp_score))
-                return Number(b.icp_score) - Number(a.icp_score);
+              if (
+                Number(b.icp_score) !== Number(a.icp_score)
+              ) {
+                return (
+                  Number(b.icp_score) -
+                  Number(a.icp_score)
+                );
+              }
 
               // 3rd Priority: Higher Propensity inside same quadrant
-              return Number(b.propensity_score) - Number(a.propensity_score);
+              return (
+                Number(b.propensity_score) -
+                Number(a.propensity_score)
+              );
             });
 
-          //------------------------------------------------------- 
-
+            //-------------------------------------------------------
 
             return (
               <tr key={l.Lead_id}>
@@ -136,19 +152,25 @@ export default function ICPLeadsTable({
                 </td>
 
                 <td>
-                  <div className="fw-bold">{l.Company_name || "—"}</div>
-                  <div className="text-muted small">{l.country || "—"}</div>
+                  <div className="fw-bold">
+                    {l.Company_name || "—"}
+                  </div>
+                  <div className="text-muted small">
+                    {l.country || "—"}
+                  </div>
                 </td>
 
                 <td>
-                  <div className="small fw-semibold">{l.Job_title || "—"}</div>
+                  <div className="small fw-semibold">
+                    {l.Job_title || "—"}
+                  </div>
                   <div className="text-muted small">
                     {l.Job_level_desc || "—"}
                   </div>
                 </td>
 
                 <td>{l.industry || "—"}</td>
-                
+
                 <td className="text-center">
                   <span className="badge text-dark bg-warning rounded-pill">
                     {quadrant?.quadrant || "—"}
@@ -162,32 +184,45 @@ export default function ICPLeadsTable({
                 <td className="small fw-semibold">
                   {!l.recommended_action ? (
                     "—"
-                  ) : l.recommended_action.includes("Immediate") ? (
+                  ) : l.recommended_action.includes(
+                      "Immediate"
+                    ) ? (
                     <span className="badge bg-success rounded-pill">
                       {l.recommended_action}
                     </span>
-                  ) : l.recommended_action.includes("Nurture") ? (
+                  ) : l.recommended_action.includes(
+                      "Nurture"
+                    ) ? (
                     <span className="badge bg-primary text-white rounded-pill">
                       {l.recommended_action}
                     </span>
-                  )  : l.recommended_action.includes("Short-term capture ") ? (
+                  ) : l.recommended_action.includes(
+                      "Short-term capture "
+                    ) ? (
                     <span className="badge bg-warning text-dark rounded-pill">
                       {l.recommended_action}
-                    </span>):
-                    l.recommended_action.includes("Cost Avoidance ") ? (
+                    </span>
+                  ) : l.recommended_action.includes(
+                      "Cost Avoidance "
+                    ) ? (
                     <span className="badge bg-danger text-dark rounded-pill">
                       {l.recommended_action}
-                    </span>): (
+                    </span>
+                  ) : (
                     <span className="badge bg-info text-dark rounded-pill">
                       {l.recommended_action}
                     </span>
                   )}
                 </td>
+
                 <td>
                   <button
                     className="btn btn-sm btn-outline-warning rounded-pill"
                     onClick={() =>
-                      window.open(`/icp/leads/${l.Lead_id}`, "_blank")
+                      window.open(
+                        `/icp/leads/${l.Lead_id}`,
+                        "_blank"
+                      )
                     }
                   >
                     View Analysis
@@ -228,4 +263,3 @@ export default function ICPLeadsTable({
     </div>
   );
 }
-

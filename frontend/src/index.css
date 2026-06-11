@@ -1,54 +1,362 @@
+/* ==========================================================================
+   TAILWIND IMPORTS
+   ========================================================================== */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
+/* ==========================================================================
+   THEME VARIABLES - LIGHT MODE
+   ========================================================================== */
+
+:root {
+  --bg: #ffffff;
+  --text: #0f172a;
+  --muted: #6b7280;
+
+  --card-bg: #ffffff;
+  --surface: #f4f6fb;
+
+  --accent: #1a56db;
+}
+
+
+/* ==========================================================================
+   THEME VARIABLES - DARK MODE
+   ========================================================================== */
+
+[data-theme="dark"] {
+  --bg: #071025;
+  --text: #e6eef8;
+  --muted: #98a4b3;
+
+  --card-bg: #0f1724;
+  --surface: #071425;
+
+  --accent: #4ea3ff;
+}
+
+
+/* ==========================================================================
+   GLOBAL STYLES
+   ========================================================================== */
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
     sans-serif;
+
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  background-color: var(--bg);
+  color: var(--text);
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+  font-family:
+    source-code-pro,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Courier New",
     monospace;
 }
 
-.lefside{
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+
+.lefside {
+  float: left;
   width: 20%;
-  float: left;
   min-height: 900px;
-  background-color: #f0f0f0;
+
+  background-color: var(--surface);
 }
 
-.rightside{
-  width: 80%;
+.rightside {
   float: left;
+  width: 80%;
 }
 
-.bg_nevy_blue{
+
+/* ==========================================================================
+   COMMON UTILITIES
+   ========================================================================== */
+
+.bg_nevy_blue {
   background-color: #254982 !important;
 }
 
 .custom-hover-btn:hover {
   background-color: #254982 !important;
-  color: #fff !important; /* change text color if needed */
-  border-color: #254982 !important; /* optional, for outline consistency */
+  border-color: #254982 !important;
+  color: #ffffff !important;
 }
 
-.form-check-input:checked{
+
+/* ==========================================================================
+   FORM CONTROLS
+   ========================================================================== */
+
+.form-check-input:checked {
   background-color: #da2d2d !important;
   border-color: #da2d2d !important;
 }
 
-.form-check-input:focus{
+.form-check-input:focus {
   box-shadow: none !important;
 }
 
 
+/* ==========================================================================
+   DARK MODE - BUTTONS
+   ========================================================================== */
+
+[data-theme="dark"] .btn,
+[data-theme="dark"] .btn-light,
+[data-theme="dark"] .custom-btn {
+  background-color: transparent;
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.06);
+}
 
 
+/* ==========================================================================
+   DARK MODE - INPUTS
+   ========================================================================== */
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: #0b1724;
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.06);
+}
 
 
+/* ==========================================================================
+   DARK MODE - PROFILE COMPONENTS
+   ========================================================================== */
+
+[data-theme="dark"] .mp-field-value,
+[data-theme="dark"] .mp-stat-card,
+[data-theme="dark"] .mp-header-card,
+[data-theme="dark"] .mp-card {
+  background: var(--card-bg) !important;
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .mp-field label,
+[data-theme="dark"] .mp-pref-sub,
+[data-theme="dark"] .mp-card-title,
+[data-theme="dark"] .mp-usage-header span:last-child {
+  color: var(--muted) !important;
+}
+
+[data-theme="dark"] .mp-edit-btn,
+[data-theme="dark"] .mp-manage-btn {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+
+/* ==========================================================================
+   DARK MODE - SIDEBAR
+   ========================================================================== */
+
+[data-theme="dark"] .lefside {
+  background-color: #07111a;
+}
+
+[data-theme="dark"] .rightside {
+  background-color: transparent;
+}
+
+
+/* ==========================================================================
+   DARK MODE - GENERIC BACKGROUNDS
+   ========================================================================== */
+
+[data-theme="dark"] .bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+[data-theme="dark"] .bg-gray-100 {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+[data-theme="dark"] .bg-light {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - TEXT COLORS
+   ========================================================================== */
+
+[data-theme="dark"] .text-gray-400 {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+  color: var(--muted) !important;
+}
+
+[data-theme="dark"] .text-gray-700,
+[data-theme="dark"] .text-gray-800 {
+  color: var(--text) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - BORDERS & SHADOWS
+   ========================================================================== */
+
+[data-theme="dark"] .border {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .shadow-sm {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - HOVER EFFECTS
+   ========================================================================== */
+
+[data-theme="dark"] .hover\:bg-gray-50:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+[data-theme="dark"] .divide-gray-100 > * + * {
+  border-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - CARDS
+   ========================================================================== */
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .card-body,
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .table-responsive .bg-white {
+  background: var(--card-bg) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - TABLES
+   ========================================================================== */
+
+[data-theme="dark"] table {
+  color: var(--text);
+}
+
+[data-theme="dark"] .table,
+[data-theme="dark"] .table-responsive .table,
+[data-theme="dark"] .table.table-hover {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - TABLE HEADERS
+   ========================================================================== */
+
+[data-theme="dark"] thead,
+[data-theme="dark"] .table thead,
+[data-theme="dark"] .table thead tr,
+[data-theme="dark"] .table-light,
+[data-theme="dark"] thead.table-light {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+[data-theme="dark"] thead th,
+[data-theme="dark"] .table thead th,
+[data-theme="dark"] .table thead td {
+  color: var(--muted) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - TABLE BODY
+   ========================================================================== */
+
+[data-theme="dark"] tbody {
+  background: transparent !important;
+}
+
+[data-theme="dark"] tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .table tbody,
+[data-theme="dark"] .table tbody tr,
+[data-theme="dark"] .table tbody td {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - TABLE LIGHT OVERRIDES
+   ========================================================================== */
+
+[data-theme="dark"] table.table thead.table-light,
+[data-theme="dark"] table.table thead.table-light tr,
+[data-theme="dark"] table.table thead.table-light th,
+[data-theme="dark"] table.table thead.table-light td {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  color: var(--muted) !important;
+}
+
+[data-theme="dark"] table.table thead th,
+[data-theme="dark"] table.table thead td {
+  background-color: transparent !important;
+}
+
+
+/* ==========================================================================
+   DARK MODE - WHITE BLOCK FIXES
+   ========================================================================== */
+
+[data-theme="dark"] .table-responsive .bg-white {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .card .bg-white,
+[data-theme="dark"] .card .bg-white * {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+
+/* ==========================================================================
+   HIGH PRIORITY TABLE FALLBACKS
+   ========================================================================== */
+
+html[data-theme="dark"] .card .table thead,
+html[data-theme="dark"] .card .table thead th,
+html[data-theme="dark"] .card .table thead td {
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: var(--muted) !important;
+}
