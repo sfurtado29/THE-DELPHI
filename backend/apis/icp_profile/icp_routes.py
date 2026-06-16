@@ -9,7 +9,7 @@ from apis.icp_profile.icp_session import (
     STAGE_ASK_PRODUCT, STAGE_ASK_GEO, STAGE_ASK_INDUSTRY,
     STAGE_FETCHING, STAGE_PROFILE_READY,
 )
-from apis.icp_profile.icp_service import fetch_icp_data, fetch_matching_leads, generate_icp_statement, refine_leads, _top_values, _top_decision_makers, _consolidate_range
+from apis.icp_profile.icp_service import fetch_icp_data, fetch_matching_leads, generate_icp_statement, refine_leads, _top_values, _top_decision_makers, _consolidate_range, current_refine_criteria
 
 router = APIRouter(prefix="/icp", tags=["ICP Profile"])
 
@@ -235,7 +235,8 @@ def accept_icp(req: ICPAcceptRequest):
 
     try:
         leads = fetch_matching_leads(
-            geography, industry,
+            geographies=[geography],
+            industries=[industry],
             employee_sizes=size_filter,
             job_levels=job_levels,
             limit=50,
@@ -293,4 +294,107 @@ def refine_icp_leads(req: ICPRefineRequest):
         "instruction": instruction,
         "leads":       refined,
         "lead_count":  len(refined),
+    }
+
+
+@router.get("/refine/options")
+def refine_options(session_id: str):
+    """
+    Called when the user clicks 'Refine further'. Returns the currently
+    active targeting criteria so the frontend can pre-select matching
+    chips/buttons on the 4 targeting cards.
+    """
+    state = get_session(session_id)
+
+    if state["stage"] != STAGE_PROFILE_READY:
+        return {"error": "No ICP profile ready for this session."}
+
+    current = state.get("refine_criteria") or current_refine_criteria(state)
+    return {"current": current}
+
+
+class ICPRefineCombineRequest(BaseModel):
+    session_id:     str
+    geographies:    list[str] = []
+    industries:     list[str] = []
+    employee_sizes: list[str] = []
+    job_levels:     list[str] = []
+
+
+@router.post("/refine/combine")
+def refine_combine(req: ICPRefineCombineRequest):
+    """
+    Called when the user clicks 'Save and proceed' on the targeting cards.
+    Stores the new combined criteria and returns a before/after summary for
+    the confirmation table.
+    """
+    state = get_session(req.session_id)
+
+    if state["stage"] != STAGE_PROFILE_READY:
+        return {"error": "No ICP profile ready for this session."}
+
+    previous = state.get("refine_criteria") or current_refine_criteria(state)
+    new_criteria = {
+        "geographies":    req.geographies or previous["geographies"],
+        "industries":     req.industries or previous["industries"],
+        "employee_sizes": req.employee_sizes or previous["employee_sizes"],
+        "job_levels":     req.job_levels or previous["job_levels"],
+    }
+
+    update_session(req.session_id, {"refine_criteria": new_criteria})
+
+    fields = [
+        ("Target Geography", "geographies"),
+        ("Target Industry",  "industries"),
+        ("Employee Size",    "employee_sizes"),
+        ("Job Title",        "job_levels"),
+    ]
+    changes = [
+        {
+            "field":    label,
+            "previous": ", ".join(previous[key]) or "—",
+            "new":      ", ".join(new_criteria[key]) or "—",
+        }
+        for label, key in fields
+    ]
+
+    return {"status": "combined", "changes": changes, "criteria": new_criteria}
+
+
+class ICPRefineApplyRequest(BaseModel):
+    session_id: str
+
+
+@router.post("/refine/apply")
+def refine_apply(req: ICPRefineApplyRequest):
+    """
+    Called when the user clicks 'Use this ICP' on the confirmation table.
+    Fetches leads matching the combined targeting criteria.
+    """
+    state = get_session(req.session_id)
+
+    if state["stage"] != STAGE_PROFILE_READY:
+        return {"error": "No ICP profile ready for this session."}
+
+    criteria = state.get("refine_criteria") or current_refine_criteria(state)
+
+    try:
+        leads = fetch_matching_leads(
+            geographies=criteria["geographies"],
+            industries=criteria["industries"],
+            employee_sizes=criteria["employee_sizes"],
+            job_levels=criteria["job_levels"],
+            limit=50,
+        )
+    except Exception as e:
+        print(f"[ICP] Refine apply leads fetch failed: {e}")
+        leads = []
+
+    update_session(req.session_id, {"leads": leads, "refine_criteria": criteria})
+
+    return {
+        "status":     "accepted",
+        "criteria":   criteria,
+        "leads":      leads,
+        "lead_count": len(leads),
     }

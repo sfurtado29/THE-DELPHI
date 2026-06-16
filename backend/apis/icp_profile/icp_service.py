@@ -117,29 +117,54 @@ def _consolidate_range(values: list[str]) -> tuple[str, list[str]]:
 
 
 def fetch_matching_leads(
-    geography: str,
-    industry: str,
-    employee_sizes: list[str],
+    geographies: list[str] | None = None,
+    industries: list[str] | None = None,
+    employee_sizes: list[str] | None = None,
     job_levels: list[str] | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    sizes_clause = (
-        "and EMPLOYEE_SIZE_DESC in (" + ", ".join(f"'{s}'" for s in employee_sizes) + ") "
-        if employee_sizes else ""
-    )
-    levels_clause = (
-        "and JOB_LEVEL_DESC in (" + ", ".join(f"'{l}'" for l in job_levels) + ") "
-        if job_levels else ""
-    )
+    conditions = []
+    if geographies:
+        conditions.append("LOCATION_DESC in (" + ", ".join(f"'{g}'" for g in geographies) + ")")
+    if industries:
+        conditions.append("STANDARD_INDUSTRY_DESC in (" + ", ".join(f"'{i}'" for i in industries) + ")")
+    if employee_sizes:
+        conditions.append("EMPLOYEE_SIZE_DESC in (" + ", ".join(f"'{s}'" for s in employee_sizes) + ")")
+    if job_levels:
+        conditions.append("JOB_LEVEL_DESC in (" + ", ".join(f"'{l}'" for l in job_levels) + ")")
+
+    where_clause = " and ".join(conditions)
     prompt = (
-        f"Show leads where STANDARD_INDUSTRY_DESC = '{industry}' "
-        f"and LOCATION_DESC = '{geography}' "
-        f"{sizes_clause}{levels_clause}. "
+        f"Show leads where {where_clause}. "
         f"Return LEAD_ID, FIRST_NAME, LAST_NAME, COMPANY_NAME, JOB_TITLE, "
         f"JOB_LEVEL_DESC, JOBFUNCTION_DESC, INDUSTRY, LOCATION_DESC, EMPLOYEE_SIZE_DESC. "
         f"Limit {limit}."
     )
     return query_cortex_analyst(prompt, model="leads")
+
+
+def current_refine_criteria(state: dict) -> dict:
+    """
+    Derive the active targeting criteria (as multi-value lists) from the
+    session's single geography/industry plus the ICP's aggregated employee
+    size and decision-maker job levels. Used to pre-select the "Refine
+    further" cards and as the "previous" side of the change-confirmation table.
+    """
+    icp_data = state.get("icp_data", [])
+
+    top_sizes = _top_values(icp_data, "EMPLOYEE_SIZE_DESC", n=3)
+    _, size_filter = _consolidate_range(top_sizes)
+    job_levels = _top_decision_makers(icp_data, n=3)
+
+    geography = state.get("geography")
+    industry  = state.get("industry")
+
+    return {
+        "geographies":    [geography] if geography else [],
+        "industries":     [industry] if industry else [],
+        "employee_sizes": size_filter,
+        "job_levels":     job_levels,
+    }
 
 
 def _lead_id(lead: dict) -> int | str | None:
