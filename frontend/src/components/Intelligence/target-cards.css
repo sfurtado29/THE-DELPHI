@@ -1,0 +1,338 @@
+/* ─────────────────────────────────────────────────────────────
+   target-cards.css
+   Four targeting cards for the Delphi campaign pipeline:
+   Geography (combobox + chips), Industry (combobox + chips),
+   Employee Size (buttons), Job Level (buttons).
+   Palette: Delphi UI — white surfaces, indigo accent.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --tc-wrap-bg:     #f4f5fb;
+  --tc-card:        #ffffff;
+  --tc-card-inner:  #eef2ff;
+  --tc-ink:         #374151;
+  --tc-ink-soft:    #9ca3af;
+  --tc-accent:      #4f46e5;
+  --tc-accent-dark: #4338ca;
+  --tc-accent-soft: #eef2ff;
+  --tc-border:      #e5e7eb;
+  --tc-chip-on:     #4f46e5;
+  --tc-radius:      14px;
+  --tc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.tc-wrap {
+  font-family: var(--tc-font);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  background: var(--tc-wrap-bg);
+  border: 1px solid var(--tc-border);
+  border-radius: 18px;
+}
+
+/* ── Card shell ─────────────────────────────────────────────── */
+.tc-card {
+  background: var(--tc-card);
+  border-radius: var(--tc-radius);
+  padding: 18px;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.08);
+  border: 1px solid var(--tc-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tc-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--tc-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tc-card-title .tc-step {
+  background: var(--tc-accent-soft);
+  color: var(--tc-accent);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.tc-card-sub {
+  font-size: 12px;
+  color: var(--tc-ink-soft);
+  margin-top: -6px;
+}
+
+/* ── Combobox (editable dropdown) ───────────────────────────── */
+.tc-combo { position: relative; }
+
+.tc-combo input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 36px 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--tc-ink);
+  background: #fff;
+  border: 1.5px solid var(--tc-border);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 120ms;
+}
+
+.tc-combo input::placeholder { color: var(--tc-ink-soft); }
+.tc-combo input:focus { border-color: var(--tc-accent); }
+
+.tc-combo .tc-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--tc-ink-soft);
+  font-size: 11px;
+}
+
+.tc-combo-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--tc-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.14);
+  display: none;
+}
+
+.tc-combo-list.open { display: block; }
+
+.tc-combo-item {
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--tc-ink);
+  cursor: pointer;
+}
+
+.tc-combo-item mark {
+  background: none;
+  color: var(--tc-accent);
+  font-weight: 700;
+}
+
+.tc-combo-item:hover,
+.tc-combo-item.active { background: var(--tc-accent-soft); }
+
+.tc-combo-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--tc-ink-soft);
+}
+
+/* ── Recommended chips ──────────────────────────────────────── */
+.tc-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tc-chip-label {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tc-ink-soft);
+}
+
+.tc-chip {
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--tc-border);
+  background: #fff;               /* same as employee-size / job-level buttons */
+  color: var(--tc-ink);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.tc-chip:hover { border-color: var(--tc-accent); }
+
+.tc-chip.selected {
+  background: var(--tc-chip-on);
+  border-color: var(--tc-chip-on);
+  color: #fff;
+}
+
+/* ── Button-grid cards (employee size / job level) ──────────── */
+.tc-btn-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tc-opt {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--tc-border);
+  background: #fff;
+  color: var(--tc-ink);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms, transform 80ms;
+}
+
+.tc-opt:hover { border-color: var(--tc-accent); }
+.tc-opt:active { transform: scale(0.97); }
+
+.tc-opt.selected {
+  background: var(--tc-accent);
+  border-color: var(--tc-accent);
+  color: #fff;
+}
+
+/* ── Selected value footer ──────────────────────────────────── */
+.tc-selection {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--tc-ink-soft);
+  border-top: 1px dashed var(--tc-border);
+  padding-top: 10px;
+  min-height: 16px;
+}
+
+.tc-selection strong { color: var(--tc-accent); font-weight: 700; }
+
+/* Focus visibility */
+.tc-chip:focus-visible,
+.tc-opt:focus-visible,
+.tc-combo input:focus-visible {
+  outline: 2px solid var(--tc-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .tc-wrap { grid-template-columns: 1fr; padding: 14px; }
+}
+
+/* ── Pagination (2 cards per page) ──────────────────────────── */
+.tc-pager {
+  font-family: var(--tc-font);
+  background: var(--tc-wrap-bg);
+  border: 1px solid var(--tc-border);
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.tc-pager .tc-wrap {
+  background: none;
+  border: none;
+  padding: 0;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.tc-page { display: none; }
+.tc-page.active { display: block; animation: tc-page-in 180ms ease-out; }
+
+@keyframes tc-page-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tc-page.active { animation: none; }
+}
+
+.tc-pager-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.tc-arrow {
+  font: inherit;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tc-border);
+  background: #fff;
+  color: var(--tc-accent);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, border-color 120ms, opacity 120ms;
+}
+
+.tc-arrow:hover:not(:disabled) {
+  background: var(--tc-accent);
+  border-color: var(--tc-accent);
+  color: #fff;
+}
+
+.tc-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tc-arrow:focus-visible {
+  outline: 2px solid var(--tc-accent);
+  outline-offset: 2px;
+}
+
+.tc-dots { display: flex; gap: 8px; }
+
+.tc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;
+  transition: background 120ms, transform 120ms;
+}
+
+.tc-dot.active {
+  background: var(--tc-accent);
+  transform: scale(1.25);
+}
+
+/* ── Save & Apply (last page only) ──────────────────────────── */
+.tc-apply-row {
+  display: none;            /* shown by JS on the last page */
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.tc-btn-apply {
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 8px;
+  background: var(--tc-accent);
+  border: 1px solid var(--tc-accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.tc-btn-apply:hover { background: var(--tc-accent-dark); }
+
+.tc-btn-apply:focus-visible {
+  outline: 2px solid var(--tc-accent);
+  outline-offset: 2px;
+}
