@@ -241,6 +241,15 @@ def accept_icp(req: ICPAcceptRequest):
             job_levels=job_levels,
             limit=50,
         )
+        # If the specific filters produced no results, broaden to geo+industry only.
+        # This handles cases where icp_data was empty (Cortex returned no aggregate
+        # rows) so size_filter/job_levels were [] and Cortex still missed the query.
+        if not leads:
+            leads = fetch_matching_leads(
+                geographies=[geography],
+                industries=[industry],
+                limit=50,
+            )
     except Exception as e:
         print(f"[ICP] Accept leads fetch failed: {e}")
         leads = []
@@ -315,10 +324,10 @@ def refine_options(session_id: str):
 
 class ICPRefineCombineRequest(BaseModel):
     session_id:     str
-    geographies:    list[str] = []
-    industries:     list[str] = []
-    employee_sizes: list[str] = []
-    job_levels:     list[str] = []
+    geographies:    list[str] | None = None
+    industries:     list[str] | None = None
+    employee_sizes: list[str] | None = None
+    job_levels:     list[str] | None = None
 
 
 @router.post("/refine/combine")
@@ -334,11 +343,13 @@ def refine_combine(req: ICPRefineCombineRequest):
         return {"error": "No ICP profile ready for this session."}
 
     previous = state.get("refine_criteria") or current_refine_criteria(state)
+    # Use None (not empty list) as sentinel: None means "field not sent by UI",
+    # [] means "user explicitly cleared all selections" — both are now distinct.
     new_criteria = {
-        "geographies":    req.geographies or previous["geographies"],
-        "industries":     req.industries or previous["industries"],
-        "employee_sizes": req.employee_sizes or previous["employee_sizes"],
-        "job_levels":     req.job_levels or previous["job_levels"],
+        "geographies":    req.geographies    if req.geographies    is not None else previous["geographies"],
+        "industries":     req.industries     if req.industries     is not None else previous["industries"],
+        "employee_sizes": req.employee_sizes if req.employee_sizes is not None else previous["employee_sizes"],
+        "job_levels":     req.job_levels     if req.job_levels     is not None else previous["job_levels"],
     }
 
     update_session(req.session_id, {"refine_criteria": new_criteria})
@@ -386,6 +397,12 @@ def refine_apply(req: ICPRefineApplyRequest):
             job_levels=criteria["job_levels"],
             limit=50,
         )
+        if not leads:
+            leads = fetch_matching_leads(
+                geographies=criteria["geographies"],
+                industries=criteria["industries"],
+                limit=50,
+            )
     except Exception as e:
         print(f"[ICP] Refine apply leads fetch failed: {e}")
         leads = []

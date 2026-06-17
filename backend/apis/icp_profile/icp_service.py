@@ -156,6 +156,13 @@ def current_refine_criteria(state: dict) -> dict:
     _, size_filter = _consolidate_range(top_sizes)
     job_levels = _top_decision_makers(icp_data, n=3)
 
+    # Fallback defaults when ICP data returned no employee-size or job-level stats
+    # (e.g. Cortex returned no rows for the aggregate query).
+    if not size_filter:
+        size_filter = ["100-249", "250-499", "500-999"]
+    if not job_levels:
+        job_levels = ["Director", "VP", "C-Level"]
+
     geography = state.get("geography")
     industry  = state.get("industry")
 
@@ -181,45 +188,55 @@ def refine_leads(leads: list[dict], instruction: str) -> list[dict]:
     if not leads or not instruction.strip():
         return leads
 
+    # Use sequential indices as IDs — reliable regardless of whether LEAD_ID
+    # exists in the data. LEAD_ID can be None/missing from some Cortex responses,
+    # which caused all-None IDs → GPT couldn't distinguish rows → no filtering.
+    def _get(lead, *keys):
+        for k in keys:
+            v = lead.get(k)
+            if v:
+                return v
+        return None
+
     compact = [
         {
-            "id":            _lead_id(lead),
-            "company":       lead.get("COMPANY_NAME") or lead.get("company_name"),
-            "job_title":     lead.get("JOB_TITLE") or lead.get("job_title"),
-            "job_level":     lead.get("JOB_LEVEL_DESC") or lead.get("job_level_desc"),
-            "job_function":  lead.get("JOBFUNCTION_DESC") or lead.get("jobfunction_desc"),
-            "industry":      lead.get("INDUSTRY") or lead.get("industry"),
-            "geography":     lead.get("LOCATION_DESC") or lead.get("location_desc"),
-            "employee_size": lead.get("EMPLOYEE_SIZE_DESC") or lead.get("employee_size_desc"),
+            "id":            i,
+            "company":       _get(lead, "COMPANY_NAME", "company_name"),
+            "job_title":     _get(lead, "JOB_TITLE", "job_title", "JOB_TITLE_DESC", "job_title_desc"),
+            "job_level":     _get(lead, "JOB_LEVEL_DESC", "job_level_desc", "JOB_LEVEL", "job_level", "SENIORITY", "seniority"),
+            "job_function":  _get(lead, "JOBFUNCTION_DESC", "jobfunction_desc", "JOB_FUNCTION", "job_function"),
+            "industry":      _get(lead, "INDUSTRY", "industry", "STANDARD_INDUSTRY_DESC", "standard_industry_desc"),
+            "geography":     _get(lead, "LOCATION_DESC", "location_desc", "COUNTRY", "country"),
+            "employee_size": _get(lead, "EMPLOYEE_SIZE_DESC", "employee_size_desc", "EMPLOYEE_SIZE", "employee_size"),
         }
-        for lead in leads
+        for i, lead in enumerate(leads)
     ]
 
     prompt = f"""You are filtering a list of sales leads based on a user instruction.
 
-Leads (JSON array, each with an "id"):
+Leads (JSON array, each with an "id" from 0 to {len(leads) - 1}):
 {json.dumps(compact)}
 
 Instruction: "{instruction}"
 
 Decide which leads to KEEP based on the instruction.
-Return ONLY a JSON array of the "id" values to keep, e.g. [101, 205, 309].
+Return ONLY a JSON array of the "id" values (integers) to keep, e.g. [0, 2, 5].
 If the instruction doesn't relate to any field above, return the ids of ALL leads unchanged.
 No explanation, no markdown."""
 
-    response = ask_gpt(prompt, temperature=0.0, max_tokens=1000)
+    response = ask_gpt(prompt, temperature=0.0, max_tokens=2000)
     try:
         clean = response.strip()
         if clean.startswith("```"):
             clean = clean.split("```")[1]
             if clean.startswith("json"):
                 clean = clean[4:]
-        keep_ids = set(json.loads(clean.strip()))
+        keep_indices = set(int(x) for x in json.loads(clean.strip()))
     except Exception as e:
-        print(f"[ICP] Refine failed to parse GPT response: {e}")
+        print(f"[ICP] Refine failed to parse GPT response: {e}\nRaw: {response[:200]}")
         return leads
 
-    return [lead for lead in leads if _lead_id(lead) in keep_ids]
+    return [lead for i, lead in enumerate(leads) if i in keep_indices]
 
 
 def generate_icp_statement(
