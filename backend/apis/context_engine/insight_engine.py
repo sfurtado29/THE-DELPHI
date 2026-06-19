@@ -277,6 +277,71 @@ def _score_lead(cursor, lead_id: int, lead_detail: dict) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════
+# ICP SCORING — score all leads, no threshold filter
+# ══════════════════════════════════════════════════════════════
+
+def score_and_sort_leads(cortex_leads: list[dict]) -> list[dict]:
+    """
+    Score every lead through all three models and return the full list
+    sorted by combined_score descending. No threshold filter, no top-N cap.
+    Falls back to the original unscored list on any DB error.
+    """
+    if not cortex_leads:
+        return []
+
+    conn   = None
+    cursor = None
+    try:
+        conn   = get_conn()
+        cursor = conn.cursor(dictionary=True)
+
+        _SCORE_KEYS = {
+            "propensity_score", "icp_score", "combined_score",
+            "priority", "persona", "persona_tier", "persona_role",
+            "business_meaning", "recommended_action", "insight",
+            "engagement_score", "conversion_score", "velocity_score",
+            "deal_size_score", "final_persona_score", "breakdown",
+            "qa_status", "is_audited", "suppressed", "suppress_reason",
+        }
+
+        scored: list[dict] = []
+        for raw in cortex_leads:
+            lead_id = raw.get("lead_id") or raw.get("Lead_id") or raw.get("LEAD_ID")
+            if not lead_id:
+                scored.append(raw)
+                continue
+            try:
+                detail = _fetch_lead_detail(cursor, int(lead_id))
+                if not detail:
+                    scored.append(raw)
+                    continue
+                score_result = _score_lead(cursor, int(lead_id), detail)
+                # Merge: keep all original Cortex fields so refine_leads can
+                # still read JOB_LEVEL_DESC etc., then overlay scoring fields.
+                merged = dict(raw)
+                merged.update({k: v for k, v in score_result.items() if k in _SCORE_KEYS})
+                scored.append(merged)
+            except Exception as e:
+                log.warning(f"Scoring failed for lead {lead_id}: {e}")
+                scored.append(raw)
+
+        scored.sort(key=lambda x: -x.get("combined_score", 0))
+        return scored
+
+    except Exception as e:
+        log.error(f"score_and_sort_leads DB error: {e}")
+        return cortex_leads
+
+    finally:
+        if cursor:
+            try: cursor.close()
+            except: pass
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+# ══════════════════════════════════════════════════════════════
 # MAIN ENTRY POINT
 # ══════════════════════════════════════════════════════════════
 

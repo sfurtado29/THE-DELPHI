@@ -10,6 +10,7 @@ from apis.icp_profile.icp_session import (
     STAGE_FETCHING, STAGE_PROFILE_READY,
 )
 from apis.icp_profile.icp_service import fetch_icp_data, fetch_matching_leads, generate_icp_statement, refine_leads, _top_values, _top_decision_makers, _consolidate_range, current_refine_criteria
+from apis.context_engine.insight_engine import score_and_sort_leads
 
 router = APIRouter(prefix="/icp", tags=["ICP Profile"])
 
@@ -69,8 +70,12 @@ def _run_icp_lookup(
     product:    str,
 ) -> None:
     try:
-        icp_data  = fetch_icp_data(geography, industry)
-        statement = generate_icp_statement(geography, industry, product, icp_data)
+        icp_data = fetch_icp_data(geography, industry)
+        print(f"[ICP] fetch_icp_data returned {len(icp_data)} rows for industry='{industry}', geo='{geography}'")
+        if icp_data:
+            print(f"[ICP] Sample row: {icp_data[0]}")
+        statement   = generate_icp_statement(geography, industry, product, icp_data)
+        data_source = "live" if icp_data else "fallback"
     except Exception as e:
         print(f"[ICP] Lookup failed: {e}")
         icp_data  = []
@@ -79,10 +84,32 @@ def _run_icp_lookup(
             f"mid-to-large employee base, where senior decision-makers are evaluating "
             f"solutions like {product} to drive growth and operational efficiency."
         )
+        data_source = "error"
 
-    update_session(session_id, {"icp_data": icp_data, "statement": statement})
+    # Quick lead count — same criteria as /accept uses
+    lead_count = 0
+    try:
+        top_sizes = _top_values(icp_data, "EMPLOYEE_SIZE_DESC", n=3)
+        _, size_filter = _consolidate_range(top_sizes)
+        job_levels = _top_decision_makers(icp_data, n=3)
+        count_leads = fetch_matching_leads(
+            geographies=[geography],
+            industries=[industry],
+            employee_sizes=size_filter or None,
+            job_levels=job_levels or None,
+            limit=200,
+        )
+        if not count_leads:
+            count_leads = fetch_matching_leads(
+                geographies=[geography], industries=[industry], limit=200
+            )
+        lead_count = len(count_leads)
+    except Exception as e:
+        print(f"[ICP] Lead count failed: {e}")
+
+    update_session(session_id, {"icp_data": icp_data, "statement": statement, "lead_count": lead_count, "data_source": data_source})
     set_stage(session_id, STAGE_PROFILE_READY)
-    print(f"[ICP] Session {session_id} → profile_ready")
+    print(f"[ICP] Session {session_id} → profile_ready | source={data_source} | icp_rows={len(icp_data)} | leads={lead_count}")
 
 
 @router.post("/chat")
@@ -182,13 +209,16 @@ def icp_chat(req: ICPRequest, background_tasks: BackgroundTasks):
     # ── STAGE: PROFILE_READY ─────────────────────────────────
     if stage == STAGE_PROFILE_READY:
         return {
-            "status":    "complete",
-            "stage":     STAGE_PROFILE_READY,
-            "product":   state["product"],
-            "geography": state["geography"],
-            "industry":  state["industry"],
-            "statement": state["statement"],
-            "response":  state["statement"],
+            "status":      "complete",
+            "stage":       STAGE_PROFILE_READY,
+            "product":     state["product"],
+            "geography":   state["geography"],
+            "industry":    state["industry"],
+            "statement":   state["statement"],
+            "response":    state["statement"],
+            "lead_count":  state.get("lead_count", 0),
+            "data_source": state.get("data_source", "unknown"),
+            "icp_rows":    len(state.get("icp_data", [])),
         }
 
     # Fallback — reset to start
@@ -254,6 +284,7 @@ def accept_icp(req: ICPAcceptRequest):
         print(f"[ICP] Accept leads fetch failed: {e}")
         leads = []
 
+    leads = score_and_sort_leads(leads)
     update_session(req.session_id, {"leads": leads})
 
     return {
@@ -369,7 +400,27 @@ def refine_combine(req: ICPRefineCombineRequest):
         for label, key in fields
     ]
 
-    return {"status": "combined", "changes": changes, "criteria": new_criteria}
+    # Quick lead count for the new criteria
+    lead_count = 0
+    try:
+        count_leads = fetch_matching_leads(
+            geographies=new_criteria["geographies"] or None,
+            industries=new_criteria["industries"] or None,
+            employee_sizes=new_criteria["employee_sizes"] or None,
+            job_levels=new_criteria["job_levels"] or None,
+            limit=200,
+        )
+        if not count_leads:
+            count_leads = fetch_matching_leads(
+                geographies=new_criteria["geographies"] or None,
+                industries=new_criteria["industries"] or None,
+                limit=200,
+            )
+        lead_count = len(count_leads)
+    except Exception as e:
+        print(f"[ICP] Combine lead count failed: {e}")
+
+    return {"status": "combined", "changes": changes, "criteria": new_criteria, "lead_count": lead_count}
 
 
 class ICPRefineApplyRequest(BaseModel):
@@ -407,6 +458,7 @@ def refine_apply(req: ICPRefineApplyRequest):
         print(f"[ICP] Refine apply leads fetch failed: {e}")
         leads = []
 
+    leads = score_and_sort_leads(leads)
     update_session(req.session_id, {"leads": leads, "refine_criteria": criteria})
 
     return {

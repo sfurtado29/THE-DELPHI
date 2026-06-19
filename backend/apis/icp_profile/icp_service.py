@@ -178,65 +178,54 @@ def _lead_id(lead: dict) -> int | str | None:
     return lead.get("LEAD_ID") if "LEAD_ID" in lead else lead.get("lead_id")
 
 
+def _lead_text_fields(lead: dict) -> str:
+    """Concatenate all searchable identity fields into one lowercase string."""
+    keys = [
+        "JOB_LEVEL_DESC", "job_level_desc", "job_level",
+        "JOB_TITLE",      "job_title_desc",  "job_title",
+        "JOBFUNCTION_DESC","job_function",
+        "INDUSTRY",        "industry",
+        "COMPANY_NAME",    "company_name",    "company",
+        "LOCATION_DESC",   "location_desc",   "country",
+    ]
+    parts = []
+    for k in keys:
+        v = lead.get(k)
+        if v and str(v).strip():
+            parts.append(str(v).strip())
+    return " | ".join(parts).lower()
+
+
 def refine_leads(leads: list[dict], instruction: str) -> list[dict]:
     """
-    Apply a natural-language instruction (e.g. "exclude directors",
-    "only show IT industry", "remove Coworx Staffing") to an existing
-    leads list and return the filtered list.
-    Falls back to the original list if the GPT call/parse fails.
+    Apply a natural-language instruction to filter the leads list.
+    Handles exclude/remove/only patterns directly with string matching.
     """
     if not leads or not instruction.strip():
         return leads
 
-    # Use sequential indices as IDs — reliable regardless of whether LEAD_ID
-    # exists in the data. LEAD_ID can be None/missing from some Cortex responses,
-    # which caused all-None IDs → GPT couldn't distinguish rows → no filtering.
-    def _get(lead, *keys):
-        for k in keys:
-            v = lead.get(k)
-            if v:
-                return v
-        return None
+    text = instruction.strip().lower()
 
-    compact = [
-        {
-            "id":            i,
-            "company":       _get(lead, "COMPANY_NAME", "company_name"),
-            "job_title":     _get(lead, "JOB_TITLE", "job_title", "JOB_TITLE_DESC", "job_title_desc"),
-            "job_level":     _get(lead, "JOB_LEVEL_DESC", "job_level_desc", "JOB_LEVEL", "job_level", "SENIORITY", "seniority"),
-            "job_function":  _get(lead, "JOBFUNCTION_DESC", "jobfunction_desc", "JOB_FUNCTION", "job_function"),
-            "industry":      _get(lead, "INDUSTRY", "industry", "STANDARD_INDUSTRY_DESC", "standard_industry_desc"),
-            "geography":     _get(lead, "LOCATION_DESC", "location_desc", "COUNTRY", "country"),
-            "employee_size": _get(lead, "EMPLOYEE_SIZE_DESC", "employee_size_desc", "EMPLOYEE_SIZE", "employee_size"),
-        }
-        for i, lead in enumerate(leads)
-    ]
+    # ── "exclude X" / "remove X" ─────────────────────────────
+    for prefix in ("exclude ", "remove ", "filter out ", "without "):
+        if text.startswith(prefix):
+            keyword = text[len(prefix):].strip().rstrip("s")  # strip trailing 's'
+            return [
+                lead for lead in leads
+                if keyword not in _lead_text_fields(lead)
+            ]
 
-    prompt = f"""You are filtering a list of sales leads based on a user instruction.
+    # ── "only X" / "only show X" / "show only X" ─────────────
+    for prefix in ("only show ", "show only ", "only ", "keep only ", "just "):
+        if text.startswith(prefix):
+            keyword = text[len(prefix):].strip().rstrip("s")
+            return [
+                lead for lead in leads
+                if keyword in _lead_text_fields(lead)
+            ]
 
-Leads (JSON array, each with an "id" from 0 to {len(leads) - 1}):
-{json.dumps(compact)}
-
-Instruction: "{instruction}"
-
-Decide which leads to KEEP based on the instruction.
-Return ONLY a JSON array of the "id" values (integers) to keep, e.g. [0, 2, 5].
-If the instruction doesn't relate to any field above, return the ids of ALL leads unchanged.
-No explanation, no markdown."""
-
-    response = ask_gpt(prompt, temperature=0.0, max_tokens=2000)
-    try:
-        clean = response.strip()
-        if clean.startswith("```"):
-            clean = clean.split("```")[1]
-            if clean.startswith("json"):
-                clean = clean[4:]
-        keep_indices = set(int(x) for x in json.loads(clean.strip()))
-    except Exception as e:
-        print(f"[ICP] Refine failed to parse GPT response: {e}\nRaw: {response[:200]}")
-        return leads
-
-    return [lead for i, lead in enumerate(leads) if i in keep_indices]
+    # ── fallback: return unchanged ────────────────────────────
+    return leads
 
 
 def generate_icp_statement(
@@ -285,6 +274,9 @@ Rules:
 - Job functions/departments: use ONLY these, exactly as given: {functions_str}
 - Do NOT add filler phrases like "and other departments" or "and other functions" —
   list only the departments/levels named above
+- Wrap these specific values in **double asterisks** for emphasis:
+  the geography ("{geography}"), the employee size range ("{emp_range}"),
+  each job level (e.g. **C-suite executives**), and each department name
 - No bullet points, no headers, no emojis
 - Professional B2B tone"""
 
@@ -294,9 +286,9 @@ Rules:
 
 def _fallback_statement(geography: str, industry: str, product: str) -> str:
     return (
-        f"Ideal customers are {industry} companies in {geography} with 100–500 employees, "
-        f"where decision-makers such as C-suite executives, directors, and senior managers "
-        f"across Operations, Finance, and Technology are actively involved in evaluating "
+        f"Ideal customers are {industry} companies in **{geography}** with **100–500 employees**, "
+        f"where decision-makers such as **C-suite executives**, **directors**, and **senior managers** "
+        f"across **Operations**, **Finance**, and **Technology** are actively involved in evaluating "
         f"solutions like {product} that improve efficiency and drive business growth.\n\n"
         f"These organizations are typically seeking innovative tools to streamline operations, "
         f"enhance productivity, and achieve better business outcomes."
