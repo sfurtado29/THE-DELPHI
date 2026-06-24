@@ -1,6 +1,8 @@
 // Intelligence.js — Enterprise Redesign
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import "./intellegence.css";
+import "./target-cards.css";
+import "./target-cards.js";
 
 const API_BASE   = "http://127.0.0.1:8000";
 const API_HOST = (process.env.REACT_APP_API_DOMAIN || process.env.REACT_APP_API_BASE || API_BASE).replace(/\/$/, "");
@@ -534,6 +536,48 @@ function ProgressBar({ filled, total }) {
   );
 }
 
+// Wraps the vanilla-JS TargetCards widget (target-cards.js) so it can be
+// dropped into the chat as 4 targeting cards (geography, industry,
+// employee size, job title) pre-selected from the current ICP criteria.
+function TargetCardsWidget({ initial, onApply }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (containerRef.current && window.TargetCards) {
+      window.TargetCards.render(containerRef.current, { initial, onApply });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <div className="target-cards-slot" ref={containerRef} />;
+}
+
+// Renders the Field / Previous / New change-confirmation table returned by
+// /icp/refine/combine, plus a "Use this ICP" action.
+function RefineConfirmCard({ changes, onUse }) {
+  return (
+    <div className="refine-confirm-card">
+      <table className="refine-confirm-table">
+        <thead>
+          <tr><th>Field</th><th>Previous</th><th>New</th></tr>
+        </thead>
+        <tbody>
+          {(changes || []).map((row, i) => (
+            <tr key={i}>
+              <td>{row.field}</td>
+              <td>{row.previous}</td>
+              <td>{row.new}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="icp-actions" style={{ marginTop: 12 }}>
+        <button className="icp-btn primary" onClick={onUse}>Use this ICP</button>
+      </div>
+    </div>
+  );
+}
+
 function PhaseBadge({ phase }) {
   if (!phase || phase === "complete") return null;
   const isProduct = phase === "product";
@@ -729,7 +773,7 @@ export default function Intellegence() {
     pushMessage({
       role: 'bot', type: 'icp',
       narrative: formatIcpNarrative(statement),
-      quick_replies: ['Accept ICP', 'Start over'],
+      quick_replies: ['Accept ICP', 'Refine further', 'Start over'],
     });
   }, [pushMessage]);
 
@@ -963,6 +1007,92 @@ export default function Intellegence() {
     // keep suggestions visible; don't clear them
   };
 
+  // Fetch the current targeting criteria and show the 4 "Refine further" cards
+  // (geography, industry, employee size, job title), pre-selected from it.
+  const fetchRefineOptions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_HOST}/icp/refine/options?session_id=${encodeURIComponent(sessionRef.current)}`);
+      const data = await res.json();
+      if (data.error) {
+        pushMessage({ role: 'bot', text: data.error });
+      } else {
+        pushMessage({ role: 'bot', text: 'What would you like to change?' });
+        pushMessage({ role: 'bot', type: 'refine_cards', initial: data.current });
+      }
+    } catch (e) {
+      pushMessage({ role: 'bot', text: 'Failed to load refinement options.' });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushMessage]);
+
+  // "Save and proceed" on the targeting cards — combine selections with the
+  // current ICP and show a before/after confirmation table.
+  const handleRefineCombine = useCallback(async (selection) => {
+    pushMessage({ role: 'user', text: 'Save and proceed' });
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_HOST}/icp/refine/combine`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionRef.current, ...selection }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        pushMessage({ role: 'bot', text: data.error });
+      } else {
+        pushMessage({ role: 'bot', text: 'Here is what will change:' });
+        pushMessage({ role: 'bot', type: 'refine_confirm', changes: data.changes });
+      }
+    } catch (e) {
+      pushMessage({ role: 'bot', text: 'Failed to apply those changes.' });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushMessage]);
+
+  // "Use this ICP" on the confirmation table — fetch leads for the combined criteria.
+  const handleUseThisIcp = useCallback(async () => {
+    pushMessage({ role: 'user', text: 'Use this ICP' });
+    setIsFetching(true);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_HOST}/icp/refine/apply`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionRef.current }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        pushMessage({ role: 'bot', text: data.error });
+      } else {
+        const leads = data.leads || [];
+        const count = data.lead_count ?? leads.length;
+        pushMessage({ role: 'bot', text: `Found ${count} matching lead${count === 1 ? '' : 's'} for the updated ICP.` });
+        pushMessage({ role: 'bot', table: leads, leads_count: count });
+        setIcpStage('accepted');
+        setIcpLeads(leads);
+        setSuggestions({});
+        pushMessage({ role: 'bot', type: 'post_leads_choice' });
+      }
+    } catch (e) {
+      pushMessage({ role: 'bot', text: 'Something went wrong fetching leads. Please try again.' });
+    } finally {
+      setIsFetching(false);
+      setLoading(false);
+    }
+  }, [pushMessage]);
+
+  // Post-leads follow-up: refine the existing list manually, or refine the
+  // whole ICP again via the targeting cards.
+  const handlePostLeadsChoice = useCallback(async (choice) => {
+    pushMessage({ role: 'user', text: choice });
+    if (choice.toLowerCase().includes('existing')) {
+      pushMessage({ role: 'bot', text: 'Type the filter you would like to apply below (e.g. "exclude directors").' });
+    } else {
+      await fetchRefineOptions();
+    }
+  }, [pushMessage, fetchRefineOptions]);
+
   // Handle ICP card quick-reply actions: "Accept ICP" fetches matching leads
   // via /icp/accept; "Start over" resets and restarts the ICP flow.
   const handleIcpAction = async (qr) => {
@@ -997,6 +1127,11 @@ export default function Intellegence() {
         setIsFetching(false);
         setLoading(false);
       }
+      return;
+    }
+
+    if (text.toLowerCase().includes('refine further')) {
+      await fetchRefineOptions();
       return;
     }
 
@@ -1221,6 +1356,31 @@ export default function Intellegence() {
                     </div>
                   )}
 
+                  {/* ── Refine further: 4 targeting cards ── */}
+                  {msg.type === 'refine_cards' && (
+                    <TargetCardsWidget initial={msg.initial} onApply={handleRefineCombine} />
+                  )}
+
+                  {/* ── Refine further: change confirmation table ── */}
+                  {msg.type === 'refine_confirm' && (
+                    <RefineConfirmCard changes={msg.changes} onUse={handleUseThisIcp} />
+                  )}
+
+                  {/* ── Post-leads follow-up choices ── */}
+                  {msg.type === 'post_leads_choice' && (
+                    <div className="icp-card">
+                      <div className="icp-heading">What's next?</div>
+                      <div className="icp-actions">
+                        <button className="icp-btn primary" onClick={() => handlePostLeadsChoice('Refine on the existing lead list')}>
+                          Refine on the existing lead list
+                        </button>
+                        <button className="icp-btn" onClick={() => handlePostLeadsChoice('Refine the whole ICP again')}>
+                          Refine the whole ICP again
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {msg.editApplied && (
                     <div className="edit-badge">
                       ✓ Updated: {msg.editApplied.field?.replace(/_/g, " ")} → {msg.editApplied.value}
@@ -1359,12 +1519,6 @@ export default function Intellegence() {
         </div>
 
         <div className="input-zone">
-          {icpLeads !== null && (
-            <div className="refine-banner">
-              <span>Refining ICP leads — type a filter (e.g. "only show leads in California") or</span>
-              <button className="refine-reset-btn" onClick={() => initiateICP()}>Start a new ICP</button>
-            </div>
-          )}
           <div className="input-card">
             <textarea
               ref={textareaRef}

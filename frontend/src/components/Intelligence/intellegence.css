@@ -789,9 +789,41 @@ body {
   line-height: 1.6;
   margin-bottom: 12px;
 }
-.icp-actions { display:flex; gap:8px; }
+.icp-actions { display:flex; gap:8px; flex-wrap: wrap; }
 .icp-btn { padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.06); background: white; cursor: pointer; }
 .icp-btn.primary { background: linear-gradient(135deg, var(--violet), var(--accent)); color: #fff; border: none; }
+
+/* ── Refine further: targeting cards + confirmation table ── */
+.target-cards-slot {
+  margin-top: 12px;
+}
+
+.refine-confirm-card {
+  background: linear-gradient(180deg, rgba(109,40,217,0.08), rgba(109,40,217,0.04));
+  border: 1px solid rgba(109,40,217,0.14);
+  padding: 18px;
+  border-radius: 12px;
+  color: var(--text-pri);
+  margin-top: 12px;
+}
+.refine-confirm-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.refine-confirm-table th,
+.refine-confirm-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(109,40,217,0.14);
+  color: var(--text-sec);
+}
+.refine-confirm-table th {
+  color: var(--violet);
+  font-weight: 700;
+}
+.refine-confirm-table tr:last-child td {
+  border-bottom: none;
+}
 
 /* ── Suggestions ────────────────────────────────────────── */
 .suggestions-area {

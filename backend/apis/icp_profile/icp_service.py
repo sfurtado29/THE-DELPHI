@@ -117,24 +117,25 @@ def _consolidate_range(values: list[str]) -> tuple[str, list[str]]:
 
 
 def fetch_matching_leads(
-    geography: str,
-    industry: str,
-    employee_sizes: list[str],
+    geographies: list[str] | None = None,
+    industries: list[str] | None = None,
+    employee_sizes: list[str] | None = None,
     job_levels: list[str] | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    sizes_clause = (
-        "and EMPLOYEE_SIZE_DESC in (" + ", ".join(f"'{s}'" for s in employee_sizes) + ") "
-        if employee_sizes else ""
-    )
-    levels_clause = (
-        "and JOB_LEVEL_DESC in (" + ", ".join(f"'{l}'" for l in job_levels) + ") "
-        if job_levels else ""
-    )
+    conditions = []
+    if geographies:
+        conditions.append("LOCATION_DESC in (" + ", ".join(f"'{g}'" for g in geographies) + ")")
+    if industries:
+        conditions.append("STANDARD_INDUSTRY_DESC in (" + ", ".join(f"'{i}'" for i in industries) + ")")
+    if employee_sizes:
+        conditions.append("EMPLOYEE_SIZE_DESC in (" + ", ".join(f"'{s}'" for s in employee_sizes) + ")")
+    if job_levels:
+        conditions.append("JOB_LEVEL_DESC in (" + ", ".join(f"'{l}'" for l in job_levels) + ")")
+
+    where_clause = " and ".join(conditions)
     prompt = (
-        f"Show leads where STANDARD_INDUSTRY_DESC = '{industry}' "
-        f"and LOCATION_DESC = '{geography}' "
-        f"{sizes_clause}{levels_clause}. "
+        f"Show leads where {where_clause}. "
         f"Return LEAD_ID, FIRST_NAME, LAST_NAME, COMPANY_NAME, JOB_TITLE, "
         f"JOB_LEVEL_DESC, JOBFUNCTION_DESC, INDUSTRY, LOCATION_DESC, EMPLOYEE_SIZE_DESC. "
         f"Limit {limit}."
@@ -142,59 +143,89 @@ def fetch_matching_leads(
     return query_cortex_analyst(prompt, model="leads")
 
 
+def current_refine_criteria(state: dict) -> dict:
+    """
+    Derive the active targeting criteria (as multi-value lists) from the
+    session's single geography/industry plus the ICP's aggregated employee
+    size and decision-maker job levels. Used to pre-select the "Refine
+    further" cards and as the "previous" side of the change-confirmation table.
+    """
+    icp_data = state.get("icp_data", [])
+
+    top_sizes = _top_values(icp_data, "EMPLOYEE_SIZE_DESC", n=3)
+    _, size_filter = _consolidate_range(top_sizes)
+    job_levels = _top_decision_makers(icp_data, n=3)
+
+    # Fallback defaults when ICP data returned no employee-size or job-level stats
+    # (e.g. Cortex returned no rows for the aggregate query).
+    if not size_filter:
+        size_filter = ["100-249", "250-499", "500-999"]
+    if not job_levels:
+        job_levels = ["Director", "VP", "C-Level"]
+
+    geography = state.get("geography")
+    industry  = state.get("industry")
+
+    return {
+        "geographies":    [geography] if geography else [],
+        "industries":     [industry] if industry else [],
+        "employee_sizes": size_filter,
+        "job_levels":     job_levels,
+    }
+
+
 def _lead_id(lead: dict) -> int | str | None:
     return lead.get("LEAD_ID") if "LEAD_ID" in lead else lead.get("lead_id")
 
 
+def _lead_text_fields(lead: dict) -> str:
+    """Concatenate all searchable identity fields into one lowercase string."""
+    keys = [
+        "JOB_LEVEL_DESC", "job_level_desc", "job_level",
+        "JOB_TITLE",      "job_title_desc",  "job_title",
+        "JOBFUNCTION_DESC","job_function",
+        "INDUSTRY",        "industry",
+        "COMPANY_NAME",    "company_name",    "company",
+        "LOCATION_DESC",   "location_desc",   "country",
+    ]
+    parts = []
+    for k in keys:
+        v = lead.get(k)
+        if v and str(v).strip():
+            parts.append(str(v).strip())
+    return " | ".join(parts).lower()
+
+
 def refine_leads(leads: list[dict], instruction: str) -> list[dict]:
     """
-    Apply a natural-language instruction (e.g. "exclude directors",
-    "only show IT industry", "remove Coworx Staffing") to an existing
-    leads list and return the filtered list.
-    Falls back to the original list if the GPT call/parse fails.
+    Apply a natural-language instruction to filter the leads list.
+    Handles exclude/remove/only patterns directly with string matching.
     """
     if not leads or not instruction.strip():
         return leads
 
-    compact = [
-        {
-            "id":            _lead_id(lead),
-            "company":       lead.get("COMPANY_NAME") or lead.get("company_name"),
-            "job_title":     lead.get("JOB_TITLE") or lead.get("job_title"),
-            "job_level":     lead.get("JOB_LEVEL_DESC") or lead.get("job_level_desc"),
-            "job_function":  lead.get("JOBFUNCTION_DESC") or lead.get("jobfunction_desc"),
-            "industry":      lead.get("INDUSTRY") or lead.get("industry"),
-            "geography":     lead.get("LOCATION_DESC") or lead.get("location_desc"),
-            "employee_size": lead.get("EMPLOYEE_SIZE_DESC") or lead.get("employee_size_desc"),
-        }
-        for lead in leads
-    ]
+    text = instruction.strip().lower()
 
-    prompt = f"""You are filtering a list of sales leads based on a user instruction.
+    # ── "exclude X" / "remove X" ─────────────────────────────
+    for prefix in ("exclude ", "remove ", "filter out ", "without "):
+        if text.startswith(prefix):
+            keyword = text[len(prefix):].strip().rstrip("s")  # strip trailing 's'
+            return [
+                lead for lead in leads
+                if keyword not in _lead_text_fields(lead)
+            ]
 
-Leads (JSON array, each with an "id"):
-{json.dumps(compact)}
+    # ── "only X" / "only show X" / "show only X" ─────────────
+    for prefix in ("only show ", "show only ", "only ", "keep only ", "just "):
+        if text.startswith(prefix):
+            keyword = text[len(prefix):].strip().rstrip("s")
+            return [
+                lead for lead in leads
+                if keyword in _lead_text_fields(lead)
+            ]
 
-Instruction: "{instruction}"
-
-Decide which leads to KEEP based on the instruction.
-Return ONLY a JSON array of the "id" values to keep, e.g. [101, 205, 309].
-If the instruction doesn't relate to any field above, return the ids of ALL leads unchanged.
-No explanation, no markdown."""
-
-    response = ask_gpt(prompt, temperature=0.0, max_tokens=1000)
-    try:
-        clean = response.strip()
-        if clean.startswith("```"):
-            clean = clean.split("```")[1]
-            if clean.startswith("json"):
-                clean = clean[4:]
-        keep_ids = set(json.loads(clean.strip()))
-    except Exception as e:
-        print(f"[ICP] Refine failed to parse GPT response: {e}")
-        return leads
-
-    return [lead for lead in leads if _lead_id(lead) in keep_ids]
+    # ── fallback: return unchanged ────────────────────────────
+    return leads
 
 
 def generate_icp_statement(
@@ -243,6 +274,9 @@ Rules:
 - Job functions/departments: use ONLY these, exactly as given: {functions_str}
 - Do NOT add filler phrases like "and other departments" or "and other functions" —
   list only the departments/levels named above
+- Wrap these specific values in **double asterisks** for emphasis:
+  the geography ("{geography}"), the employee size range ("{emp_range}"),
+  each job level (e.g. **C-suite executives**), and each department name
 - No bullet points, no headers, no emojis
 - Professional B2B tone"""
 
@@ -252,9 +286,9 @@ Rules:
 
 def _fallback_statement(geography: str, industry: str, product: str) -> str:
     return (
-        f"Ideal customers are {industry} companies in {geography} with 100–500 employees, "
-        f"where decision-makers such as C-suite executives, directors, and senior managers "
-        f"across Operations, Finance, and Technology are actively involved in evaluating "
+        f"Ideal customers are {industry} companies in **{geography}** with **100–500 employees**, "
+        f"where decision-makers such as **C-suite executives**, **directors**, and **senior managers** "
+        f"across **Operations**, **Finance**, and **Technology** are actively involved in evaluating "
         f"solutions like {product} that improve efficiency and drive business growth.\n\n"
         f"These organizations are typically seeking innovative tools to streamline operations, "
         f"enhance productivity, and achieve better business outcomes."

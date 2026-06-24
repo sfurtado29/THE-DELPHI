@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Delphi Targeting Cards — Demo</title>
+<style>
+body { margin: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.chat { max-width: 1000px; margin: 0 auto; padding: 32px 20px 80px; }
+.row { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: #4f46e5; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.bubble { flex: 1; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 12px 16px; font-size: 14px; color: #374151; }
+.card-slot { flex: 1; min-width: 0; }
+pre { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 12px; font-size: 12px; color: #374151; }
+/* ─────────────────────────────────────────────────────────────
+   target-cards.css
+   Four targeting cards for the Delphi campaign pipeline:
+   Geography (combobox + chips), Industry (combobox + chips),
+   Employee Size (buttons), Job Level (buttons).
+   Palette: Delphi UI — white surfaces, indigo accent.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --tc-wrap-bg:     #f4f5fb;
+  --tc-card:        #ffffff;
+  --tc-card-inner:  #eef2ff;
+  --tc-ink:         #374151;
+  --tc-ink-soft:    #9ca3af;
+  --tc-accent:      #4f46e5;
+  --tc-accent-dark: #4338ca;
+  --tc-accent-soft: #eef2ff;
+  --tc-border:      #e5e7eb;
+  --tc-chip-on:     #4f46e5;
+  --tc-radius:      14px;
+  --tc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.tc-wrap {
+  font-family: var(--tc-font);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  background: var(--tc-wrap-bg);
+  border: 1px solid var(--tc-border);
+  border-radius: 18px;
+}
+
+/* ── Card shell ─────────────────────────────────────────────── */
+.tc-card {
+  background: var(--tc-card);
+  border-radius: var(--tc-radius);
+  padding: 18px;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.08);
+  border: 1px solid var(--tc-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tc-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--tc-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tc-card-title .tc-step {
+  background: var(--tc-accent-soft);
+  color: var(--tc-accent);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.tc-card-sub {
+  font-size: 12px;
+  color: var(--tc-ink-soft);
+  margin-top: -6px;
+}
+
+/* ── Combobox (editable dropdown) ───────────────────────────── */
+.tc-combo { position: relative; }
+
+.tc-combo input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 36px 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--tc-ink);
+  background: #fff;
+  border: 1.5px solid var(--tc-border);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 120ms;
+}
+
+.tc-combo input::placeholder { color: var(--tc-ink-soft); }
+.tc-combo input:focus { border-color: var(--tc-accent); }
+
+.tc-combo .tc-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--tc-ink-soft);
+  font-size: 11px;
+}
+
+.tc-combo-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--tc-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.14);
+  display: none;
+}
+
+.tc-combo-list.open { display: block; }
+
+.tc-combo-item {
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--tc-ink);
+  cursor: pointer;
+}
+
+.tc-combo-item mark {
+  background: none;
+  color: var(--tc-accent);
+  font-weight: 700;
+}
+
+.tc-combo-item:hover,
+.tc-combo-item.active { background: var(--tc-accent-soft); }
+
+.tc-combo-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--tc-ink-soft);
+}
+
+/* ── Recommended chips ──────────────────────────────────────── */
+.tc-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tc-chip-label {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tc-ink-soft);
+}
+
+.tc-chip {
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--tc-border);
+  background: #fff;               /* same as employee-size / job-level buttons */
+  color: var(--tc-ink);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.tc-chip:hover { border-color: var(--tc-accent); }
+
+.tc-chip.selected {
+  background: var(--tc-chip-on);
+  border-color: var(--tc-chip-on);
+  color: #fff;
+}
+
+/* ── Button-grid cards (employee size / job level) ──────────── */
+.tc-btn-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tc-opt {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--tc-border);
+  background: #fff;
+  color: var(--tc-ink);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms, transform 80ms;
+}
+
+.tc-opt:hover { border-color: var(--tc-accent); }
+.tc-opt:active { transform: scale(0.97); }
+
+.tc-opt.selected {
+  background: var(--tc-accent);
+  border-color: var(--tc-accent);
+  color: #fff;
+}
+
+/* ── Selected value footer ──────────────────────────────────── */
+.tc-selection {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--tc-ink-soft);
+  border-top: 1px dashed var(--tc-border);
+  padding-top: 10px;
+  min-height: 16px;
+}
+
+.tc-selection strong { color: var(--tc-accent); font-weight: 700; }
+
+/* Focus visibility */
+.tc-chip:focus-visible,
+.tc-opt:focus-visible,
+.tc-combo input:focus-visible {
+  outline: 2px solid var(--tc-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .tc-wrap { grid-template-columns: 1fr; padding: 14px; }
+}
+
+/* ── Pagination (2 cards per page) ──────────────────────────── */
+.tc-pager {
+  font-family: var(--tc-font);
+  background: var(--tc-wrap-bg);
+  border: 1px solid var(--tc-border);
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.tc-pager .tc-wrap {
+  background: none;
+  border: none;
+  padding: 0;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.tc-page { display: none; }
+.tc-page.active { display: block; animation: tc-page-in 180ms ease-out; }
+
+@keyframes tc-page-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tc-page.active { animation: none; }
+}
+
+.tc-pager-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.tc-arrow {
+  font: inherit;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tc-border);
+  background: #fff;
+  color: var(--tc-accent);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, border-color 120ms, opacity 120ms;
+}
+
+.tc-arrow:hover:not(:disabled) {
+  background: var(--tc-accent);
+  border-color: var(--tc-accent);
+  color: #fff;
+}
+
+.tc-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tc-arrow:focus-visible {
+  outline: 2px solid var(--tc-accent);
+  outline-offset: 2px;
+}
+
+.tc-dots { display: flex; gap: 8px; }
+
+.tc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;
+  transition: background 120ms, transform 120ms;
+}
+
+.tc-dot.active {
+  background: var(--tc-accent);
+  transform: scale(1.25);
+}
+
+/* ── Save & Apply (last page only) ──────────────────────────── */
+.tc-apply-row {
+  display: none;            /* shown by JS on the last page */
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.tc-btn-apply {
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 8px;
+  background: var(--tc-accent);
+  border: 1px solid var(--tc-accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.tc-btn-apply:hover { background: var(--tc-accent-dark); }
+
+.tc-btn-apply:focus-visible {
+  outline: 2px solid var(--tc-accent);
+  outline-offset: 2px;
+}
+
+</style>
+</head>
+<body>
+<div class="chat">
+  <div class="row"><div class="avatar">D</div>
+    <div class="bubble">Set up the targeting for your campaign below.</div></div>
+  <div class="row"><div class="avatar" style="visibility:hidden">D</div>
+    <div class="card-slot" id="targeting-cards"></div></div>
+  <pre id="out">selection will appear here</pre>
+</div>
+<script>
+/* ─────────────────────────────────────────────────────────────
+   target-cards.js
+   Renders 4 targeting cards into a container:
+     1. Target Geography  — editable combobox + recommended chips
+     2. Target Industry   — editable combobox + recommended chips
+     3. Employee Size     — multi-select buttons
+     4. Job Level         — multi-select buttons
+
+   Usage:
+     TargetCards.render(document.getElementById("targeting-cards"), {
+       onChange: (selection) => console.log(selection),        // every toggle
+       onApply:  (selection) => postToPipeline(selection),     // Save & Apply
+     });
+
+   selection shape (all multi-select):
+     {
+       geographies: ["United States", ...],
+       industries:  ["Banking", ...],
+       employee_sizes: ["100-249", ...],
+       job_levels:     ["Director", ...],
+     }
+
+   Geography list  = Location_desc  (Mst_tbllocationelements, Isactive=1)
+   Industry list   = Standard_industry_desc (Mst_tblstandardindustry, Isactive=1)
+   ───────────────────────────────────────────────────────────── */
+
+(function (global) {
+  "use strict";
+
+  // ── DATA ────────────────────────────────────────────────────
+  const GEOGRAPHIES = [
+    "Afghanistan", "Albania", "Algeria", "American Samoa", "Andorra", "Angola",
+    "Anguilla", "Antarctica", "Antigua and Barbuda", "Argentina", "Armenia",
+    "Aruba", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh",
+    "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bermuda", "Bhutan",
+    "Bolivia, Plurinational State of", "Bosnia and Herzegovina", "Botswana",
+    "Bouvet Island", "Brazil", "British Indian Ocean Territory", "Brunei Darussalam",
+    "Bulgaria", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Canada",
+    "Cape Verde", "Cayman Islands", "Central African Republic", "Chad", "Chile",
+    "China", "Christmas Island", "Cocos (Keeling) Islands", "Colombia", "Comoros",
+    "Congo", "Congo, the Democratic Republic of the", "Cook Islands", "Costa Rica",
+    "Côte d'Ivoire", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark",
+    "Djibouti", "Dominica", "Dominican Republic", "Timor-Leste(East Timor)",
+    "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia",
+    "Ethiopia", "External Territories of Australia", "Falkland Islands (Malvinas)",
+    "Faroe Islands", "Fiji", "Finland", "France", "French Guiana", "French Polynesia",
+    "French Southern Territories", "Gabon", "Gambia", "Georgia", "Germany",
+    "Ghana", "Gibraltar", "Greece", "Greenland", "Grenada", "Guadeloupe", "Guam",
+    "Guatemala", "Guernsey (and Alderney)", "Guinea", "Guinea-Bissau", "Guyana",
+    "Haiti", "Heard Island and McDonald Islands", "Honduras", "Hong Kong",
+    "Hungary", "Iceland", "India", "Indonesia", "Iran, Islamic Republic of",
+    "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jersey", "Jordan",
+    "Kazakhstan", "Kenya", "Kiribati", "Korea, Democratic People's Republic of",
+    "Korea, Republic of", "Kuwait", "Kyrgyzstan", "Lao People's Democratic Republic",
+    "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania",
+    "Luxembourg", "Macao", "Macedonia, the Former Yugoslav Republic of", "Madagascar",
+    "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Isle of Man", "Marshall Islands",
+    "Martinique", "Mauritania", "Mauritius", "Mayotte", "Mexico", "Micronesia, Federated States of",
+    "Moldova, Republic of", "Monaco", "Mongolia", "Montserrat", "Morocco",
+    "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands Antilles",
+    "Netherlands", "New Caledonia", "New Zealand", "Nicaragua", "Niger", "Nigeria",
+    "Niue", "Norfolk Island", "Northern Mariana Islands", "Norway", "Oman",
+    "Pakistan", "Palau", "Palestine, State of", "Panama", "Papua New Guinea",
+    "Paraguay", "Peru", "Philippines", "Pitcairn", "Poland", "Portugal", "Puerto Rico",
+    "Qatar", "Réunion", "Romania", "Russian Federation", "Rwanda", "Saint Helena, Ascension and Tristan da Cunha",
+    "Saint Kitts and Nevis", "Saint Lucia", "Saint Pierre and Miquelon", "Saint Vincent and the Grenadines",
+    "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal",
+    "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia",
+    "Smaller Territories of the UK", "Solomon Islands", "Somalia", "South Africa",
+    "South Georgia and the South Sandwich Islands", "South Sudan", "Spain",
+    "Sri Lanka", "Sudan", "Suriname", "Svalbard and Jan Mayen", "Swaziland",
+    "Sweden", "Switzerland", "Syrian Arab Republic", "Taiwan, Province of China",
+    "Tajikistan", "Tanzania, United Republic of", "Thailand", "Togo", "Tokelau",
+    "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Turks and Caicos Islands",
+    "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom",
+    "United States", "United States Minor Outlying Islands", "Uruguay", "Uzbekistan",
+    "Vanuatu", "Holy See (Vatican City State)", "Venezuela, Bolivarian Republic of",
+    "Viet Nam", "Virgin Islands, British", "Virgin Islands, U.S.", "Wallis and Futuna",
+    "Western Sahara", "Yemen", "Montenegro(Yugoslavia)", "Zambia", "Zimbabwe",
+    "Åland Islands",
+  ];
+
+  const INDUSTRIES = [
+    "Agriculture & Mining", "Airlines & Aviation", "Banking", "Biotechnology",
+    "Business Services", "Chemicals", "Computers & Electronics", "Consulting",
+    "Consumer Services", "Defense & Space", "Education - Higher Education",
+    "Education - Primary & Secondary", "Energy & Utilities", "Financial", "Food & Beverages",
+    "Government - Federal / National", "Government - Local", "Government - State / Provincial",
+    "Healthcare", "High Tech", "Insurance", "Life Sciences", "Manufacturing",
+    "Marketing & Advertising", "Media & Entertainment", "Nonprofit", "Real Estate & Construction",
+    "Retail", "Software & Internet", "Telecommunications", "Transportation & Storage",
+    "Travel, Recreation & Leisure", "Wholesale & Distribution", "Education",
+    "Accounting", "Financial Services", "Other",
+  ];
+
+  const EMPLOYEE_SIZES = [
+    "1-9", "10-19", "20-49", "50-99", "100-249", "250-499",
+    "500-999", "1000-2499", "2500-4999", "5000-9999", "10000+",
+  ];
+
+  const JOB_LEVELS = [
+    "Analyst", "Architect", "Administrator", "Engineer", "Security",
+    "Staff", "Manager", "Director", "VP", "C Level", "Owner",
+    "President", "Head", "Other", "Founder",
+  ];
+
+  // Recommended quick-pick chips (high-frequency targets)
+  const RECOMMENDED_GEOS = [
+    "United States", "United Kingdom", "India", "Canada",
+    "Australia", "Germany", "Singapore",
+  ];
+
+  const RECOMMENDED_INDUSTRIES = [
+    "Software & Internet", "Banking", "Healthcare",
+    "Manufacturing", "High Tech", "Financial Services",
+  ];
+
+  // ── STATE ───────────────────────────────────────────────────
+  const state = {
+    geographies: [],
+    industries: [],
+    employee_sizes: [],
+    job_levels: [],
+  };
+
+  let onChangeCb = null;
+
+  function emit() {
+    if (typeof onChangeCb === "function") {
+      onChangeCb(JSON.parse(JSON.stringify(state)));
+    }
+  }
+
+  // ── FUZZY-ISH MATCH ─────────────────────────────────────────
+  // "somewhat matches": prefix > substring > subsequence
+  function matchScore(option, query) {
+    const opt = option.toLowerCase();
+    const q = query.toLowerCase().trim();
+    if (!q) return 1;
+    if (opt.startsWith(q)) return 3;
+    if (opt.includes(q)) return 2;
+    let i = 0;
+    for (const ch of opt) {
+      if (ch === q[i]) i++;
+      if (i === q.length) return 1;
+    }
+    return 0;
+  }
+
+  function filterOptions(options, query, limit = 50) {
+    if (!query.trim()) return options.slice(0, limit);
+    return options
+      .map((o) => ({ o, s: matchScore(o, query) }))
+      .filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s || a.o.localeCompare(b.o))
+      .slice(0, limit)
+      .map((x) => x.o);
+  }
+
+  function highlight(option, query) {
+    const q = query.trim();
+    if (!q) return escapeHtml(option);
+    const idx = option.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return escapeHtml(option);
+    return (
+      escapeHtml(option.slice(0, idx)) +
+      "<mark>" + escapeHtml(option.slice(idx, idx + q.length)) + "</mark>" +
+      escapeHtml(option.slice(idx + q.length))
+    );
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[c]);
+  }
+
+  // ── DOM HELPERS ─────────────────────────────────────────────
+  function el(tag, cls, html) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (html !== undefined) node.innerHTML = html;
+    return node;
+  }
+
+  // ── COMBOBOX CARD (geography / industry) ────────────────────
+  function buildComboCard({ step, title, sub, placeholder, options, recommended, stateKey }) {
+    const card = el("div", "tc-card");
+    card.appendChild(el("div", "tc-card-title",
+      '<span class="tc-step">' + step + "</span>" + escapeHtml(title)));
+    card.appendChild(el("div", "tc-card-sub", escapeHtml(sub)));
+
+    // combobox
+    const combo = el("div", "tc-combo");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = placeholder;
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-expanded", "false");
+    input.autocomplete = "off";
+    const caret = el("span", "tc-caret", "&#9662;");
+    const list = el("div", "tc-combo-list");
+    list.setAttribute("role", "listbox");
+    combo.append(input, caret, list);
+    card.appendChild(combo);
+
+    // chips
+    const chipRow = el("div", "tc-chip-row");
+    chipRow.appendChild(el("span", "tc-chip-label", "Recommended"));
+    const chips = recommended.map((r) => {
+      const b = el("button", "tc-chip", escapeHtml(r));
+      b.type = "button";
+      b.addEventListener("click", () => select(r));
+      chipRow.appendChild(b);
+      return b;
+    });
+    card.appendChild(chipRow);
+
+    const footer = el("div", "tc-selection", "No selection");
+    card.appendChild(footer);
+
+    const arr = state[stateKey];
+    const chipEls = new Map();
+    chips.forEach((c) => chipEls.set(c.textContent, c));
+
+    let activeIdx = -1;
+    let visible = [];
+
+    function renderList(query) {
+      visible = filterOptions(options, query);
+      activeIdx = -1;
+      if (!visible.length) {
+        list.innerHTML = '<div class="tc-combo-empty">No matches for "' +
+          escapeHtml(query) + '"</div>';
+      } else {
+        list.innerHTML = "";
+        visible.forEach((opt) => {
+          const item = el("div", "tc-combo-item", highlight(opt, query));
+          item.setAttribute("role", "option");
+          item.addEventListener("mousedown", (e) => {
+            e.preventDefault(); // keep input focus
+            select(opt);
+          });
+          list.appendChild(item);
+        });
+      }
+      open();
+    }
+
+    function open() {
+      list.classList.add("open");
+      input.setAttribute("aria-expanded", "true");
+    }
+    function close() {
+      list.classList.remove("open");
+      input.setAttribute("aria-expanded", "false");
+      activeIdx = -1;
+    }
+
+    function syncFooter() {
+      footer.innerHTML = arr.length
+        ? "Selected: <strong>" + arr.map(escapeHtml).join(", ") + "</strong>"
+        : "No selection";
+    }
+
+    // Toggle a value in/out of the multi-selection.
+    // Values picked from the dropdown that are not in the recommended
+    // row get their own chip so they stay visible and removable.
+    function select(value) {
+      const i = arr.indexOf(value);
+      if (i === -1) {
+        arr.push(value);
+        if (!chipEls.has(value)) {
+          const b = el("button", "tc-chip", escapeHtml(value));
+          b.type = "button";
+          b.addEventListener("click", () => select(value));
+          chipRow.appendChild(b);
+          chipEls.set(value, b);
+        }
+        chipEls.get(value).classList.add("selected");
+      } else {
+        arr.splice(i, 1);
+        if (chipEls.has(value)) chipEls.get(value).classList.remove("selected");
+      }
+      // input is only a picker — clear it after each selection
+      input.value = "";
+      syncFooter();
+      close();
+      emit();
+    }
+
+    input.addEventListener("input", () => {
+      renderList(input.value);
+    });
+
+    input.addEventListener("focus", () => renderList(input.value));
+
+    input.addEventListener("keydown", (e) => {
+      const items = list.querySelectorAll(".tc-combo-item");
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!items.length) return;
+        activeIdx = e.key === "ArrowDown"
+          ? Math.min(activeIdx + 1, items.length - 1)
+          : Math.max(activeIdx - 1, 0);
+        items.forEach((it, i) => it.classList.toggle("active", i === activeIdx));
+        items[activeIdx].scrollIntoView({ block: "nearest" });
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeIdx >= 0 && visible[activeIdx]) {
+          select(visible[activeIdx]);
+        } else if (visible.length === 1) {
+          select(visible[0]);
+        }
+      } else if (e.key === "Escape") {
+        close();
+      }
+    });
+
+    input.addEventListener("blur", () => setTimeout(close, 120));
+
+    return card;
+  }
+
+  // ── BUTTON-GRID CARD (employee size / job level) ────────────
+  function buildButtonCard({ step, title, sub, options, stateKey }) {
+    const card = el("div", "tc-card");
+    card.appendChild(el("div", "tc-card-title",
+      '<span class="tc-step">' + step + "</span>" + escapeHtml(title)));
+    card.appendChild(el("div", "tc-card-sub", escapeHtml(sub)));
+
+    const grid = el("div", "tc-btn-grid");
+    const footer = el("div", "tc-selection", "No selection");
+
+    options.forEach((opt) => {
+      const b = el("button", "tc-opt", escapeHtml(opt));
+      b.type = "button";
+      b.addEventListener("click", () => {
+        const arr = state[stateKey];
+        const i = arr.indexOf(opt);
+        if (i === -1) arr.push(opt);
+        else arr.splice(i, 1);
+        b.classList.toggle("selected", i === -1);
+        footer.innerHTML = arr.length
+          ? "Selected: <strong>" + arr.map(escapeHtml).join(", ") + "</strong>"
+          : "No selection";
+        emit();
+      });
+      grid.appendChild(b);
+    });
+
+    card.appendChild(grid);
+    card.appendChild(footer);
+    return card;
+  }
+
+  // ── CARD FACTORY ────────────────────────────────────────────
+  function buildAllCards() {
+    return [
+      buildButtonCard({
+        step: "1",
+        title: "Employee Size",
+        sub: "Select one or more company-size ranges.",
+        options: EMPLOYEE_SIZES,
+        stateKey: "employee_sizes",
+      }),
+      buildButtonCard({
+        step: "2",
+        title: "Job Level",
+        sub: "Select one or more target seniority levels.",
+        options: JOB_LEVELS,
+        stateKey: "job_levels",
+      }),
+      buildComboCard({
+        step: "3",
+        title: "Target Geography",
+        sub: "Type to search a country, or pick a recommended market.",
+        placeholder: "Search countries\u2026",
+        options: GEOGRAPHIES,
+        recommended: RECOMMENDED_GEOS.filter((g) => GEOGRAPHIES.includes(g)),
+        stateKey: "geographies",
+      }),
+      buildComboCard({
+        step: "4",
+        title: "Target Industry",
+        sub: "Type to search an industry, or pick a recommended sector.",
+        placeholder: "Search industries\u2026",
+        options: INDUSTRIES,
+        recommended: RECOMMENDED_INDUSTRIES.filter((i) => INDUSTRIES.includes(i)),
+        stateKey: "industries",
+      }),
+    ];
+  }
+
+  // ── PUBLIC API ──────────────────────────────────────────────
+  const CARDS_PER_PAGE = 2;
+
+  const TargetCards = {
+    /**
+     * Paginated render: 2 cards per page with back / next arrows.
+     */
+    render(container, opts = {}) {
+      onChangeCb = opts.onChange || null;
+      container.innerHTML = "";
+
+      const cards = buildAllCards();
+      const pageCount = Math.ceil(cards.length / CARDS_PER_PAGE);
+
+      const pager = el("div", "tc-pager");
+
+      // pages
+      const pages = [];
+      for (let p = 0; p < pageCount; p++) {
+        const page = el("div", "tc-page");
+        const wrap = el("div", "tc-wrap");
+        cards
+          .slice(p * CARDS_PER_PAGE, (p + 1) * CARDS_PER_PAGE)
+          .forEach((c) => wrap.appendChild(c));
+        page.appendChild(wrap);
+        pager.appendChild(page);
+        pages.push(page);
+      }
+
+      // nav: back arrow | dots | next arrow
+      const nav = el("div", "tc-pager-nav");
+      const backBtn = el("button", "tc-arrow", "&#8592;");
+      backBtn.type = "button";
+      backBtn.setAttribute("aria-label", "Previous cards");
+      const nextBtn = el("button", "tc-arrow", "&#8594;");
+      nextBtn.type = "button";
+      nextBtn.setAttribute("aria-label", "Next cards");
+      const dots = el("div", "tc-dots");
+      const dotEls = pages.map((_, i) => {
+        const d = el("span", "tc-dot");
+        dots.appendChild(d);
+        return d;
+      });
+      nav.append(backBtn, dots, nextBtn);
+      pager.appendChild(nav);
+
+      let current = 0;
+      function show(p) {
+        current = p;
+        pages.forEach((pg, i) => pg.classList.toggle("active", i === p));
+        dotEls.forEach((d, i) => d.classList.toggle("active", i === p));
+        backBtn.disabled = p === 0;
+        nextBtn.disabled = p === pageCount - 1;
+      }
+
+      backBtn.addEventListener("click", () => current > 0 && show(current - 1));
+      nextBtn.addEventListener("click", () => current < pageCount - 1 && show(current + 1));
+
+      // Save & Apply — visible only on the last page
+      const onApply = opts.onApply || null;
+      const applyRow = el("div", "tc-apply-row");
+      const applyBtn = el("button", "tc-btn-apply", "Save &amp; Apply");
+      applyBtn.type = "button";
+      applyBtn.addEventListener("click", () => {
+        if (onApply) onApply(TargetCards.getSelection());
+      });
+      applyRow.appendChild(applyBtn);
+      pager.appendChild(applyRow);
+
+      const baseShow = show;
+      show = function (p) {
+        baseShow(p);
+        applyRow.style.display = p === pageCount - 1 ? "flex" : "none";
+      };
+
+      show(0);
+      container.appendChild(pager);
+      return TargetCards;
+    },
+
+    getSelection() {
+      return JSON.parse(JSON.stringify(state));
+    },
+
+    reset() {
+      state.geographies = [];
+      state.industries = [];
+      state.employee_sizes = [];
+      state.job_levels = [];
+      emit();
+    },
+  };
+
+  global.TargetCards = TargetCards;
+})(window);
+
+TargetCards.render(document.getElementById("targeting-cards"), {
+  onChange: function (selection) {
+    document.getElementById("out").textContent = JSON.stringify(selection, null, 2);
+  },
+  onApply: function (selection) {
+    document.getElementById("out").textContent =
+      "SAVED & APPLIED\n" + JSON.stringify(selection, null, 2);
+  }
+});
+</script>
+</body>
+</html>

@@ -26,6 +26,7 @@ from apis.context_engine.routes             import router as context_router
 from apis.campaign_suggest.campaign_routes  import router as campaign_router
 from apis.p3_campaign.p3_routes             import router as p3_router
 from apis.icp_profile.icp_routes            import router as icp_router
+from apis.trends.trends_routes              import router as trends_router
 
 load_dotenv()
 
@@ -57,6 +58,7 @@ app.include_router(context_router)
 app.include_router(campaign_router)
 app.include_router(p3_router)
 app.include_router(icp_router)
+app.include_router(trends_router)
 
 @app.get("/health")
 def health():
